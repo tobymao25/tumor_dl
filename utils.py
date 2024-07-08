@@ -110,7 +110,7 @@ def get_dataloader(path, train):
                                download=download,
                                cache_rate=0.0)
 
-    loader = DataLoader(dataset, batch_size=batch_size, num_workers=4, shuffle=shuffle)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle) #num_workers=4,
 
     return loader
 

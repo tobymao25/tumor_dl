@@ -43,20 +43,20 @@ class UneTRSeg:
         pred_mask = self.model(params['image'])
         loss = self.criterion(pred_mask, params['label'])
         
-        print("----")
-        print("the device is", self.device)
-        print(torch.cuda.memory_summary())
-        print(cfg.batch_size)
+        # print("----")
+        # print("the device is", self.device)
+        # print(torch.cuda.memory_summary())
+        # print(cfg.batch_size)
         torch.cuda.empty_cache()
 
-        for i in range(torch.cuda.device_count()):
-            print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
-            print(f"Memory Allocated: {torch.cuda.memory_allocated(i)}")
-            print(f"Memory Cached: {torch.cuda.memory_reserved(i)}")
+        # for i in range(torch.cuda.device_count()):
+        #     print(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+        #     print(f"Memory Allocated: {torch.cuda.memory_allocated(i)}")
+        #     print(f"Memory Cached: {torch.cuda.memory_reserved(i)}")
 
         loss.backward()
 
-        print("----")
+        # print("----")
 
         self.optimizer.step()
 
