@@ -25,6 +25,9 @@ from utils import create_folder_if_not_exist
 from nibabel.orientations import axcodes2ornt, ornt_transform, apply_orientation, aff2axcodes
 from config import cfg
 import SimpleITK as sitk
+from PIL import Image, ImageDraw, ImageFont
+import scipy.ndimage
+from scipy.ndimage import binary_fill_holes
 
 # def reorient_to_match(img, target_img):
 #     orig_ornt = axcodes2ornt(aff2axcodes(img.affine))
@@ -34,31 +37,18 @@ import SimpleITK as sitk
 
 # def flip_across_all_axes(arr):
 #     return np.flip(np.flip(np.flip(arr, axis=0), axis=1), axis=2)
-def load_and_modify_image(image_path):
-    img = nib.load(image_path)
-    img_data = img.get_fdata()
-    img_data = img_data[..., 0] 
-    img_sitk = sitk.GetImageFromArray(img_data)
-    img_sitk.SetOrigin(img.affine[:3, 3].tolist())
-    spacing = (float(img.header['pixdim'][1]), float(img.header['pixdim'][2]), float(img.header['pixdim'][3]))
-    img_sitk.SetSpacing(spacing)
-    img_sitk.SetDirection(np.reshape(img.affine[:3, :3], -1).tolist())
-    return img_sitk, img.affine
-
-def resize(img, pm):
-    original_spacing = img.GetSpacing()
-    original_size = img.GetSize()
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetReferenceImage(img)
-    resampler.SetInterpolator(sitk.sitkNearestNeighbor)
-    resampler.SetOutputSpacing(original_spacing)
-    resampler.SetSize(original_size)
-
-    pm = pm[0]
-    pm = sitk.GetImageFromArray(pm)
-    
-    resampled_mask = resampler.Execute(pm)
-    return resampled_mask
+def resize(affine, pm, nifti_path):
+    desired_shape = (240, 240, 155)
+    zoom_factors = [d / o for d, o in zip(desired_shape, pm.shape)]
+    resized_mask = scipy.ndimage.zoom(pm, zoom_factors, order=1) 
+    filled_mask = binary_fill_holes(resized_mask)
+    filled_mask = np.flip(filled_mask, axis=0) 
+    filled_mask = filled_mask.astype(np.int32)
+    print("Resized shape:", filled_mask.shape)
+    new_img = nib.Nifti1Image(filled_mask, affine)
+    new_img_np = new_img.get_fdata()
+    nib.save(new_img, nifti_path)
+    return new_img_np
 
 class SegInference:
     inferer = SimpleInferer()
@@ -137,9 +127,17 @@ class SegInference:
 
             cv2.imwrite(os.path.join('./results', name, 'ET', f'{idx}.png'),
                         pred_mask[0][2][..., idx] * 255)"""
-        img, affine = load_and_modify_image(path)
-        new_mask = resize(img, pred_mask)
-
+        img = nib.load(path)
+        affine = img.affine
+        pred_tc = pred_mask[0][0]
+        pred_wt = pred_mask[0][1]
+        pred_et = pred_mask[0][2]
+        tc_file_path = os.path.join(TC_path, f'{name}_TC.nii')
+        wt_file_path = os.path.join(WT_path, f'{name}_WT.nii')
+        et_file_path = os.path.join(ET_path, f'{name}_ET.nii')
+        _ = resize(affine, pred_tc, tc_file_path)
+        _ = resize(affine, pred_wt, wt_file_path)
+        _ = resize(affine, pred_et, et_file_path)
         # print("-------")
         # print(affine)
         # print("img")
@@ -158,26 +156,17 @@ class SegInference:
         # pred_et = flip_across_all_axes(pred_mask[0][2])
 
         # Convert SimpleITK image back to numpy array for saving with nibabel
-        new_mask_array = sitk.GetArrayFromImage(new_mask)
-    
         # Extract individual masks for TC, WT, and ET
-        pred_tc = new_mask_array[0, :, :, :]
-        pred_wt = new_mask_array[1, :, :, :]
-        pred_et = new_mask_array[2, :, :, :]
+
         
         # Create NIfTI images with the extracted masks and affine
-        tc_nifti = nib.Nifti1Image(pred_tc, affine)
-        wt_nifti = nib.Nifti1Image(pred_wt, affine)
-        et_nifti = nib.Nifti1Image(pred_et, affine)
+        # tc_nifti = nib.Nifti1Image(pred_tc, affine)
+        # wt_nifti = nib.Nifti1Image(pred_wt, affine)
+        # et_nifti = nib.Nifti1Image(pred_et, affine)
         
-        # Define file paths
-        tc_file_path = os.path.join(TC_path, f'{name}_TC.nii')
-        wt_file_path = os.path.join(WT_path, f'{name}_WT.nii')
-        et_file_path = os.path.join(ET_path, f'{name}_ET.nii')
-
-        nib.save(tc_nifti, tc_file_path)
-        nib.save(wt_nifti, wt_file_path)
-        nib.save(et_nifti, et_file_path)
+        # nib.save(tc_nifti, tc_file_path)
+        # nib.save(wt_nifti, wt_file_path)
+        # nib.save(et_nifti, et_file_path)
 
         # tc_nifti = nib.Nifti1Image(pred_mask[0][0], affine)
         # wt_nifti = nib.Nifti1Image(pred_mask[0][1], affine)
