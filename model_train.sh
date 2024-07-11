@@ -11,6 +11,6 @@
 
 # activate environment
 source ~/.bashrc
-conda activate imgenv
+conda activate monai_env
 
-python main.py --mode train --model_path ./path/to/model.pth --dataset_path ./path/to/dataset
+python main.py --mode inference --model_path ./path/to/model_6_07_2024_batch1.pth --data_path ./path/to/dataset/Task01_BrainTumour/imagesTr/BRATS_001.nii.gz

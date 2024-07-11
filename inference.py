@@ -2,6 +2,7 @@ import os
 import cv2
 import torch
 import datetime
+import numpy as np
 from monai.data import decollate_batch
 from monai.inferers import SimpleInferer
 from monai.transforms import (
@@ -21,9 +22,17 @@ import nibabel as nib
 # Additional Scripts
 from train_unetr import UneTRSeg
 from utils import create_folder_if_not_exist
-
+from nibabel.orientations import axcodes2ornt, ornt_transform, apply_orientation, aff2axcodes
 from config import cfg
 
+# def reorient_to_match(img, target_img):
+#     orig_ornt = axcodes2ornt(aff2axcodes(img.affine))
+#     target_ornt = axcodes2ornt(aff2axcodes(target_img.affine))
+#     transform_ornt = ornt_transform(orig_ornt, target_ornt)
+#     return apply_orientation(img.get_fdata(), transform_ornt), target_img.affine
+
+def flip_across_all_axes(arr):
+    return np.flip(np.flip(np.flip(arr, axis=0), axis=1), axis=2)
 
 class SegInference:
     inferer = SimpleInferer()
@@ -104,13 +113,43 @@ class SegInference:
                         pred_mask[0][2][..., idx] * 255)"""
         img = nib.load(path)
         affine = img.affine
-        tc_nifti = nib.Nifti1Image(pred_mask[0][0], affine)
-        wt_nifti = nib.Nifti1Image(pred_mask[0][1], affine)
-        et_nifti = nib.Nifti1Image(pred_mask[0][2], affine)
-        nib.save(tc_nifti, os.path.join(TC_path, f'{name}_TC.nii.gz'))
-        nib.save(wt_nifti, os.path.join(WT_path, f'{name}_WT.nii.gz'))
-        nib.save(et_nifti, os.path.join(ET_path, f'{name}_ET.nii.gz'))
-        TC_seg_path = os.path.join(TC_path, f'{name}_TC.nii.gz')
-        WT_seg_path = os.path.join(WT_path, f'{name}_WT.nii.gz')
-        ET_seg_path = os.path.join(ET_path, f'{name}_ET.nii.gz')
+
+        print("-------")
+        print(affine)
+        print("img")
+        print(img.shape)
+        print("mask")
+        print(pred_mask[0][0].shape)
+        print("-------")
+
+        # pred_tc, affine = reorient_to_match(nib.Nifti1Image(pred_mask[0][0], affine), img)
+        # pred_wt, affine = reorient_to_match(nib.Nifti1Image(pred_mask[0][1], affine), img)
+        # pred_et, affine = reorient_to_match(nib.Nifti1Image(pred_mask[0][2], affine), img)
+
+        # Flip the masks horizontally
+        pred_tc = flip_across_all_axes(pred_mask[0][0])
+        pred_wt = flip_across_all_axes(pred_mask[0][1])
+        pred_et = flip_across_all_axes(pred_mask[0][2])
+
+        tc_nifti = nib.Nifti1Image(pred_tc, affine)
+        wt_nifti = nib.Nifti1Image(pred_wt, affine)
+        et_nifti = nib.Nifti1Image(pred_et, affine)
+
+        tc_file_path = os.path.join(TC_path, f'{name}_TC.nii')
+        wt_file_path = os.path.join(WT_path, f'{name}_WT.nii')
+        et_file_path = os.path.join(ET_path, f'{name}_ET.nii')
+
+        nib.save(tc_nifti, tc_file_path)
+        nib.save(wt_nifti, wt_file_path)
+        nib.save(et_nifti, et_file_path)
+
+        # tc_nifti = nib.Nifti1Image(pred_mask[0][0], affine)
+        # wt_nifti = nib.Nifti1Image(pred_mask[0][1], affine)
+        # et_nifti = nib.Nifti1Image(pred_mask[0][2], affine)
+        # nib.save(tc_nifti, os.path.join(TC_path, f'{name}_TC.nii.gz'))
+        # nib.save(wt_nifti, os.path.join(WT_path, f'{name}_WT.nii.gz'))
+        # nib.save(et_nifti, os.path.join(ET_path, f'{name}_ET.nii.gz'))
+        TC_seg_path = os.path.join(TC_path, f'{name}_TC.nii')
+        WT_seg_path = os.path.join(WT_path, f'{name}_WT.nii')
+        ET_seg_path = os.path.join(ET_path, f'{name}_ET.nii')
         return TC_seg_path, WT_seg_path, ET_seg_path
