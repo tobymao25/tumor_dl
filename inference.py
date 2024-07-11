@@ -40,7 +40,8 @@ def load_and_modify_image(image_path):
     img_data = img_data[..., 0] 
     img_sitk = sitk.GetImageFromArray(img_data)
     img_sitk.SetOrigin(img.affine[:3, 3].tolist())
-    img_sitk.SetSpacing((img.header['pixdim'][1], img.header['pixdim'][2], img.header['pixdim'][3]))
+    spacing = (float(img.header['pixdim'][1]), float(img.header['pixdim'][2]), float(img.header['pixdim'][3]))
+    img_sitk.SetSpacing(spacing)
     img_sitk.SetDirection(np.reshape(img.affine[:3, :3], -1).tolist())
     return img_sitk, img.affine
 
@@ -52,6 +53,10 @@ def resize(img, pm):
     resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     resampler.SetOutputSpacing(original_spacing)
     resampler.SetSize(original_size)
+
+    pm = pm[0]
+    pm = sitk.GetImageFromArray(pm)
+    
     resampled_mask = resampler.Execute(pm)
     return resampled_mask
 

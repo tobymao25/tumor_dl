@@ -6,8 +6,8 @@
 #SBATCH --nodelist=mrphpcg012
 #SBATCH --cpus-per-task=10
 #SBATCH --output=/home/ltang35/tumor_dl/out/%j.out
-#SBATCH --mail-type=ALL 
-#SBATCH --mail-user=ltang35@jhu.edu
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=ltang35@jh.edu
 
 # activate environment
 source ~/.bashrc
