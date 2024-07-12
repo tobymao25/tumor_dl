@@ -47,7 +47,9 @@ def combine_segmentations(tc, wt, et, out_path):
     segmentation2 = nib.load(wt).get_fdata()
     segmentation3 = nib.load(et).get_fdata()
     combined_segmentation = np.stack((segmentation1, segmentation2, segmentation3), axis=-1)
-    combined_nifti = nib.Nifti1Image(combined_segmentation, affine=nib.load(tc).affine)
+    background_mask = (np.sum(combined_segmentation, axis=-1) == 0).astype(np.float32)
+    combined_segmentation_with_background = np.concatenate((background_mask[..., np.newaxis], combined_segmentation), axis=-1)
+    combined_nifti = nib.Nifti1Image(combined_segmentation_with_background, affine=nib.load(tc).affine)
     nib.save(combined_nifti, out_path)
     print(f'Combined segmentation saved to {out_path}')
 
