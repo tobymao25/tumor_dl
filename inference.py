@@ -174,7 +174,7 @@ class SegInference:
         # nib.save(tc_nifti, os.path.join(TC_path, f'{name}_TC.nii.gz'))
         # nib.save(wt_nifti, os.path.join(WT_path, f'{name}_WT.nii.gz'))
         # nib.save(et_nifti, os.path.join(ET_path, f'{name}_ET.nii.gz'))
-        TC_seg_path = os.path.join(TC_path, f'{name}_TC.nii')
-        WT_seg_path = os.path.join(WT_path, f'{name}_WT.nii')
-        ET_seg_path = os.path.join(ET_path, f'{name}_ET.nii')
-        return TC_seg_path, WT_seg_path, ET_seg_path
+        # TC_seg_path = os.path.join(TC_path, f'{name}_TC.nii')
+        # WT_seg_path = os.path.join(WT_path, f'{name}_WT.nii')
+        # ET_seg_path = os.path.join(ET_path, f'{name}_ET.nii')
+        return tc_file_path, wt_file_path, et_file_path
