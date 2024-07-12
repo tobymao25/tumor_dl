@@ -33,8 +33,7 @@ def resize(affine, pm, nifti_path):
     desired_shape = (240, 240, 155)
     zoom_factors = [d / o for d, o in zip(desired_shape, pm.shape)]
     resized_mask = scipy.ndimage.zoom(pm, zoom_factors, order=1) 
-    filled_mask = binary_fill_holes(resized_mask)
-    filled_mask = np.flip(filled_mask, axis=0) 
+    filled_mask = binary_fill_holes(resized_mask) 
     filled_mask = filled_mask.astype(np.int32)
     print("Resized shape:", filled_mask.shape)
     new_img = nib.Nifti1Image(filled_mask, affine)
