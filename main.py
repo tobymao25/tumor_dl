@@ -63,17 +63,17 @@ if __name__ =='__main__':
                             pred_path=i,
                             csv_file=csv_file,
                             metrics=['dice', 'precision','hd95','msd'])'''
-        TC_path, WT_path, ET_path = pipeline.save_masks(parser.data_path, pipeline.infer(parser.data_path))
+        TC_path, WT_path, ET_path, combined_path = pipeline.save_masks(parser.data_path, pipeline.infer(parser.data_path))
     
     print("now creating metrics for performance evaluation")
     labels = [0,1,2,3]
-    for idx, i in enumerate([TC_path, WT_path, ET_path]):
-        csv_file = 'metrics_{idx}.csv'
-        metrics = sg.write_metrics(labels=labels[1:],  
-                    gdth_path=parser.data_path,
-                    pred_path=i,
-                    csv_file=csv_file,
-                    metrics=['dice', 'precision','hd95','msd'])
+
+    csv_file = 'metrics_{idx}.csv'
+    metrics = sg.write_metrics(labels=labels[1:],  
+                gdth_path=parser.data_path,
+                pred_path=combined_path,
+                csv_file=csv_file,
+                metrics=['dice', 'precision','hd95','msd'])
         
         
 

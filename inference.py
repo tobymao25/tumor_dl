@@ -29,14 +29,6 @@ from PIL import Image, ImageDraw, ImageFont
 import scipy.ndimage
 from scipy.ndimage import binary_fill_holes
 
-# def reorient_to_match(img, target_img):
-#     orig_ornt = axcodes2ornt(aff2axcodes(img.affine))
-#     target_ornt = axcodes2ornt(aff2axcodes(target_img.affine))
-#     transform_ornt = ornt_transform(orig_ornt, target_ornt)
-#     return apply_orientation(img.get_fdata(), transform_ornt), target_img.affine
-
-# def flip_across_all_axes(arr):
-#     return np.flip(np.flip(np.flip(arr, axis=0), axis=1), axis=2)
 def resize(affine, pm, nifti_path):
     desired_shape = (240, 240, 155)
     zoom_factors = [d / o for d, o in zip(desired_shape, pm.shape)]
@@ -49,6 +41,15 @@ def resize(affine, pm, nifti_path):
     new_img_np = new_img.get_fdata()
     nib.save(new_img, nifti_path)
     return new_img_np
+
+def combine_segmentations(tc, wt, et, out_path):
+    segmentation1 = nib.load(tc).get_fdata()
+    segmentation2 = nib.load(wt).get_fdata()
+    segmentation3 = nib.load(et).get_fdata()
+    combined_segmentation = np.stack((segmentation1, segmentation2, segmentation3), axis=-1)
+    combined_nifti = nib.Nifti1Image(combined_segmentation, affine=nib.load(tc).affine)
+    nib.save(combined_nifti, out_path)
+    print(f'Combined segmentation saved to {out_path}')
 
 class SegInference:
     inferer = SimpleInferer()
@@ -113,7 +114,7 @@ class SegInference:
         create_folder_if_not_exist(os.path.join('./results', name, 'TC'))
         create_folder_if_not_exist(os.path.join('./results', name, 'WT'))
         create_folder_if_not_exist(os.path.join('./results', name, 'ET'))
-        base_path = os.path.join('./results', name)
+        combined_path = os.path.join('./results', name)
         TC_path = os.path.join('./results', name, 'TC')
         WT_path = os.path.join('./results', name, 'WT')
         ET_path = os.path.join('./results', name, 'ET')
@@ -132,12 +133,14 @@ class SegInference:
         pred_tc = pred_mask[0][0]
         pred_wt = pred_mask[0][1]
         pred_et = pred_mask[0][2]
+        combined_file_path = os.path.join(combined_path, f'{name}_TC.nii')
         tc_file_path = os.path.join(TC_path, f'{name}_TC.nii')
         wt_file_path = os.path.join(WT_path, f'{name}_WT.nii')
         et_file_path = os.path.join(ET_path, f'{name}_ET.nii')
         _ = resize(affine, pred_tc, tc_file_path)
         _ = resize(affine, pred_wt, wt_file_path)
         _ = resize(affine, pred_et, et_file_path)
+        combine_segmentations(tc_file_path, wt_file_path, et_file_path,combined_file_path)
         # print("-------")
         # print(affine)
         # print("img")
@@ -177,4 +180,4 @@ class SegInference:
         # TC_seg_path = os.path.join(TC_path, f'{name}_TC.nii')
         # WT_seg_path = os.path.join(WT_path, f'{name}_WT.nii')
         # ET_seg_path = os.path.join(ET_path, f'{name}_ET.nii')
-        return tc_file_path, wt_file_path, et_file_path
+        return tc_file_path, wt_file_path, et_file_path, combined_file_path
