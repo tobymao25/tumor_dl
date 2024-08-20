@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import torch
+import torch.nn as nn
 import torchio as tio
 from torch.utils.data import Dataset
 import pandas as pd
+
 
 class GBMdataset(Dataset):
     def __init__(self, image_dir, csv_path, target_dimensions=(128, 128, 128), target_spacing=(1, 1, 1), transform=None):
@@ -108,3 +110,23 @@ class GBMdataset(Dataset):
         survival_time = torch.tensor(survival_time, dtype=torch.float32)
         
         return image, survival_time
+
+
+def addnoise(input_tensor, noise_factor = 0.3):
+    inputs = input_tensor
+    noise = inputs + torch.rand_like(inputs) * noise_factor
+    noise = torch.clip (noise,0,1.)
+    return noise
+
+
+class GaussianNoise(nn.Module):
+    def __init__(self, noise_factor=0.3):
+        super(GaussianNoise, self).__init__()
+        self.noise_factor = noise_factor
+
+    def forward(self, input_tensor):
+        if self.training:  
+            noise = input_tensor + torch.rand_like(input_tensor) * self.noise_factor
+            noise = torch.clip(noise, 0, 1.0)
+            return noise
+        return input_tensor 
