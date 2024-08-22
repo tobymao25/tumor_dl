@@ -180,6 +180,7 @@ class LatentParametersModel(nn.Module):
     
     def forward(self, x):
         mu_sigma = self.mu_sigma_layer(x)
+        mu_sigma = loglogistic_activation(mu_sigma)
         return mu_sigma
 
 
@@ -189,7 +190,7 @@ def reconstruction_loss(y_true, y_pred):
     return reduced_loss
 
 
-def survival_loss(mu, sigma, x, delta):
+def survival_loss(mu, logsigma, x, delta):
     """
     Custom loss function based on the negative log-likelihood.
 
@@ -199,12 +200,41 @@ def survival_loss(mu, sigma, x, delta):
     :param delta: Event indicator (1 if event occurred, 0 if censored), tensor of shape (batch_size,)
     :return: Computed loss, scalar value
     """
-    # Negative log-likelihood term
-    total_loss = -(torch.log(x)-mu)/sigma.sum()+(delta * torch.log(sigma) + (1 + delta) * torch.log(1 + torch.exp((torch.log(x)-mu)/sigma)))
-    
-    # Return the mean loss across the batch
-    return total_loss / x.size(0)
+    x_scaled = (x - mu) / torch.exp(logsigma)
+    nll = torch.sum(x_scaled + delta * logsigma + (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
+    return nll #no need to negate and exponentiate 
 
+def loglogistic_activation(mu_logsig):
+    """
+    Activation which ensures mu is between -3 and 3 and sigma is such that
+    prediction is not more precise than 1 / n of a year.
+    :param mu_logsig: Tensor containing [mu, log(sigma)]
+    :return: Tensor with updated mu and log(sigma)
+    """
+    n = 365  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
+    p = 0.95  # quantile
+
+    # Clip mu between the min and max survival from brats data set, change this in the future
+    mu = torch.clamp(mu_logsig[:, 0], 0.6931, 7.4593)
+
+    # Calculate sigma by exponentiating the second column
+    sig = torch.exp(mu_logsig[:, 1])
+
+    # Threshold calculation based on the given formula
+    thrs = torch.log((1 / (2 * n)) * (torch.exp(-mu) + torch.sqrt((2 * n) ** 2 + torch.exp(-2 * mu)))) / \
+           torch.log(torch.tensor(p / (1 - p), dtype=torch.float32))
+
+    # Ensure sigma is no more precise than the threshold
+    logsig = torch.log(thrs + F.relu(sig - thrs))
+
+    # Reshape mu and logsig into column vectors
+    mu = mu.view(-1, 1)
+    logsig = logsig.view(-1, 1)
+
+    # Concatenate mu and logsig along the last axis
+    new = torch.cat((mu, logsig), dim=1)
+    
+    return new
 
 class GlioNet(nn.Module):
     def __init__(self, encoder, decoder, latent_param_model):
