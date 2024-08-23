@@ -35,7 +35,7 @@ class encoder(nn.Module):
         for i in range(network_depth):
             for j in range(no_convolutions):
                 out_channels = self.conv_filter_no_init * (2 ** i)
-                conv_layer = nn.Conv3d(in_channels, out_channels, self.conv_kernel_size, padding=conv_kernel_size // 2)
+                conv_layer = nn.Conv3d(in_channels, out_channels, self.conv_kernel_size, padding=(conv_kernel_size-1) // 2)
                 self.encoder_layers.append(conv_layer)
                 if self.use_batch_normalization:
                     self.encoder_layers.append(nn.BatchNorm3d(out_channels))
@@ -132,7 +132,7 @@ class Decoder3D(nn.Module):
             out_channels = self.conv_filter_no_init * (2 ** i)  # Reduce the number of channels as we move up the network
             for j in range(no_convolutions):
                 print(f"Layer {i}-{j}: in_channels = {in_channels}, out_channels = {out_channels}")
-                self.decoder_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size=conv_kernel_size, padding=1))
+                self.decoder_layers.append(nn.Conv3d(in_channels, out_channels, kernel_size=conv_kernel_size, padding=(conv_kernel_size-1) // 2))
                 if use_batch_normalization:
                     self.decoder_layers.append(nn.BatchNorm3d(out_channels))
                 if activation == 'leakyrelu':
@@ -145,7 +145,7 @@ class Decoder3D(nn.Module):
         
         # Final convolution to produce the reconstructed image with the correct number of output channels
         print(f"Final Layer: in_channels = {in_channels}, out_channels = {self.output_channels}")
-        self.final_conv = nn.Conv3d(in_channels, self.output_channels, conv_kernel_size, padding=1)
+        self.final_conv = nn.Conv3d(in_channels, self.output_channels, conv_kernel_size, padding=(conv_kernel_size-1) // 2)
         self.final_activation = nn.ReLU()  # You could change this to `nn.Sigmoid()` or `nn.Tanh()` depending on the data range
 
     def forward(self, x):

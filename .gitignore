@@ -3,3 +3,4 @@ path/
 test.py
 output
 TrainingDataset/
+__pycache__/

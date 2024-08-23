@@ -1,46 +1,44 @@
 import ray
-import tune
-from torch.utils.data import DataLoader
-from image_branch_utils import GBMdataset
-from image_branch_train import run_hyperparameter_search
+import ray.tune as tune
+from image_branch_train import train_model, run_hyperparameter_search
 
 if __name__ =='__main__':
 
-    # Define the directory with images and segmentation
-    image_dir = "./TrainingDataset/images"
+    # config = {
+    # 'input_shape': (5, 128, 128, 128), 
+    # 'network_depth': 4, 
+    # 'no_convolutions': 2, 
+    # 'conv_filter_no_init': 8, #16, 
+    # 'conv_kernel_size': 3, 
+    # 'latent_representation_dim': 64, #128, 
+    # 'dropout_value': 0.2, 
+    # 'use_batch_normalization': True, 
+    # 'activation': "relu", 
+    # "lr": 1e-4, 
+    # "epochs": 10
+    # }
 
-    # Define the path to the CSV file containing the patient survival data
-    csv_path = "./TrainingDataset/survival_data.csv"
+    # search_space = { #l1, l2???
+    # "input_shape": (5, 128, 128, 128),  # Fixed for all searches
+    # "network_depth": tune.choice([4]), 
+    # "no_convolutions": tune.choice([2]), 
+    # "conv_filter_no_init": tune.choice([8]), 
+    # "conv_kernel_size": tune.choice([3]),
+    # "latent_representation_dim": tune.choice([64]), 
+    # "dropout_value": tune.choice([0.2]),
+    # "use_batch_normalization": tune.choice([True]), 
+    # "activation": tune.choice(["relu"]),
+    # "lr": 1e-4,
+    # "epochs": tune.choice([10])
+    # }
 
-    # Create the dataset
-    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
-
-    #Create the DataLoader
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
-
-    print("data loader created")
-    1/0
-
-    # input_shape = (1, 64, 64, 64)  # Example shape
-    # network_depth = 4
-    # no_convolutions = 2
-    # conv_filter_no_init = 16
-    # conv_kernel_size = 3
-    # latent_representation_dim = 128
-    # dropout_value = 0.3
-    # use_batch_normalization = True
-    # activation = 'relu'
-    # l1 = 0.0
-    # l2 = 0.0
-    # lr = 1e-3
-
-    search_space = {
-    "input_shape": (5, 128, 128, 128),  # Fixed for all searches
-    "network_depth": tune.choice([2, 3, 4, 5]),
+    search_space = { #l1, l2???
+    "input_shape": (5, 128, 128, 128),  # Fixed
+    "network_depth": tune.choice([2, 4]), # Only supports 2 or 4
     "no_convolutions": tune.choice([1, 2, 3]),
-    "conv_filter_no_init": tune.choice([8, 16, 32, 64]),
+    "conv_filter_no_init": tune.choice([8]),
     "conv_kernel_size": tune.choice([3, 5]),
-    "latent_representation_dim": tune.choice([64, 128, 256]),
+    "latent_representation_dim": tune.choice([64, 128, 256]), 
     "dropout_value": tune.uniform(0.2, 0.4),
     "use_batch_normalization": tune.choice([True, False]),
     "activation": tune.choice(["relu", "leakyrelu"]),
@@ -49,4 +47,4 @@ if __name__ =='__main__':
     }
 
     ray.init()
-    run_hyperparameter_search()
+    run_hyperparameter_search(search_space=search_space)

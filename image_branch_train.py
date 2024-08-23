@@ -1,7 +1,10 @@
 import torch
 import torch.optim as optim
+from ray import train
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
+from torch.utils.data import DataLoader
+from image_branch_utils import GBMdataset
 from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
 from image_branch_model import reconstruction_loss, survival_loss
 
@@ -88,18 +91,35 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
     return total_loss, reconstruction_loss.mean(), survival_loss.mean()
 
 
-def train_model(config, optimizer, train_loader, compute_combined_loss, device="cpu"):
-    model = model.to(device)
-    model.train()
+def train_model(config): 
+
+    # setup data
+    image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
+    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
+    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
+    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=4)
+
+    # setup device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
     epochs = config["epochs"]
     for epoch in range(epochs):
+        print("current epoch:", epoch)
         running_loss = 0.0
-        for i, (inputs, survival_times) in enumerate(train_loader):
+        for i, (inputs, survival_times) in enumerate(dataloader):
+            # process inputs data
             inputs = inputs.to(device)
+            inputs = inputs.squeeze(2) #added due to dimension mismatch
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
+
+            # set up model and optimizer
+            model, optimizer = model_fn(config)
+            model = model.to(device)
+            model.train()
             optimizer.zero_grad()
-            model,optimizer = model_fn(config)
+            
             reconstruction, latent_params = model(inputs)
             total_loss, rec_loss, surv_loss = compute_combined_loss(
                 reconstruction, inputs, latent_params, survival_times,
@@ -108,12 +128,15 @@ def train_model(config, optimizer, train_loader, compute_combined_loss, device="
             total_loss.backward()
             optimizer.step()
             running_loss += total_loss.item()
-        print(f"Epoch {epoch+1}/{epochs}, Total Loss: {running_loss/len(train_loader):.4f}")
+
+        train.report({"loss": running_loss/len(dataloader)})
+        print(f"Epoch {epoch+1}/{epochs}, Total Loss: {running_loss/len(dataloader):.4f}")
+        torch.cuda.empty_cache() 
 
     print("Training Finished!")
 
 
-def run_hyperparameter_search():
+def run_hyperparameter_search(search_space):
     scheduler = ASHAScheduler(
         metric="loss",
         mode="min",
@@ -124,10 +147,10 @@ def run_hyperparameter_search():
 
     analysis = tune.run(
         train_model, 
-        config=search_space, # TODO -
-        num_samples=10,  
+        config=search_space,
         scheduler=scheduler,  
-        resources_per_trial={"cpu": 1, "gpu": 1 if torch.cuda.is_available() else 0} 
+        resources_per_trial={"cpu": 10, "gpu": 1 if torch.cuda.is_available() else 0}, 
+        storage_path="/home/ltang35/tumor_dl/output"
     )
 
     print("Best hyperparameters found were: ", analysis.best_config)
