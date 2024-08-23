@@ -86,9 +86,12 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
     
     mu, sigma = latent_params[:, 0], latent_params[:, 1]
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)
-    survival_loss = survival_loss_fn(mu, sigma, x, delta)
+    print("this is the reconstruction loss", reconstruction_loss)
+    survival_loss, MSE = survival_loss_fn(mu, sigma, x, delta)
+    print("this is the survival loss", survival_loss)
     total_loss = reconstruction_loss.mean() + survival_loss.mean()
-    return total_loss, reconstruction_loss.mean(), survival_loss.mean()
+    print("this is the total loss", total_loss)
+    return total_loss, reconstruction_loss.mean(), survival_loss.mean(), MSE
 
 
 def train_model(config): 
@@ -97,7 +100,7 @@ def train_model(config):
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
     csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
     dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -107,6 +110,7 @@ def train_model(config):
     for epoch in range(epochs):
         print("current epoch:", epoch)
         running_loss = 0.0
+        running_MSE = 0.0
         for i, (inputs, survival_times) in enumerate(dataloader):
             # process inputs data
             inputs = inputs.to(device)
@@ -121,36 +125,43 @@ def train_model(config):
             optimizer.zero_grad()
             
             reconstruction, latent_params = model(inputs)
-            total_loss, rec_loss, surv_loss = compute_combined_loss(
+            total_loss, rec_loss, surv_loss, MSE = compute_combined_loss(
                 reconstruction, inputs, latent_params, survival_times,
                 reconstruction_loss, survival_loss, delta
             )
             total_loss.backward()
             optimizer.step()
             running_loss += total_loss.item()
+            running_MSE += MSE
 
         train.report({"loss": running_loss/len(dataloader)})
         print(f"Epoch {epoch+1}/{epochs}, Total Loss: {running_loss/len(dataloader):.4f}")
+        print(f"Epoch {epoch+1}/{epochs}, MSE: {running_MSE/len(dataloader):.4f}")
         torch.cuda.empty_cache() 
 
     print("Training Finished!")
 
 
-def run_hyperparameter_search(search_space):
+def run_hyperparameter_search(search_space, num_samples):
     scheduler = ASHAScheduler(
         metric="loss",
         mode="min",
         max_t=30, 
-        grace_period=1,
+        grace_period=5,
         reduction_factor=2
     )
 
     analysis = tune.run(
         train_model, 
         config=search_space,
+        num_samples=num_samples,
         scheduler=scheduler,  
+        verbose=1, 
         resources_per_trial={"cpu": 10, "gpu": 1 if torch.cuda.is_available() else 0}, 
-        storage_path="/home/ltang35/tumor_dl/output"
+        storage_path="/home/ltang35/tumor_dl/output", 
     )
 
-    print("Best hyperparameters found were: ", analysis.best_config)
+    best_trial = analysis.get_best_trial(metric="loss", mode="min", scope="last")
+    print(f"Best trial config: {best_trial.config}")
+    print(f"Best trial final validation loss: {best_trial.last_result['loss']}")
+

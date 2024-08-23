@@ -200,9 +200,24 @@ def survival_loss(mu, logsigma, x, delta):
     :param delta: Event indicator (1 if event occurred, 0 if censored), tensor of shape (batch_size,)
     :return: Computed loss, scalar value
     """
-    x_scaled = (x - mu) / torch.exp(logsigma)
+    print("This is mu", mu)
+    print("This is logsigma", logsigma)
+    print("This is x", x)
+    print("This is delta", delta)
+    
+    x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
+    print("This is x_scaled", x_scaled)
+
     nll = torch.sum(x_scaled + delta * logsigma + (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
-    return nll #no need to negate and exponentiate 
+    print("This is nll term 1", x_scaled)
+    print("This is nll term 2", delta * logsigma)
+    print("This is nll term 3", (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
+
+    # calculate MSE for evaluating model
+    MSE_loss = nn.MSELoss()
+    MSE = MSE_loss(torch.exp(mu), x)
+
+    return nll, MSE #no need to negate and exponentiate 
 
 def loglogistic_activation(mu_logsig):
     """
@@ -215,7 +230,7 @@ def loglogistic_activation(mu_logsig):
     p = 0.95  # quantile
 
     # Clip mu between the min and max survival from brats data set, change this in the future
-    mu = torch.clamp(mu_logsig[:, 0], 0.6931, 7.4593)
+    mu = torch.clamp(mu_logsig[:, 0], -3, 3) #0.6931, 7.4593)
 
     # Calculate sigma by exponentiating the second column
     sig = torch.exp(mu_logsig[:, 1])
