@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from image_branch_utils import GBMdataset
 from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
 from image_branch_model import reconstruction_loss, survival_loss
-
+import torchvision.transforms as T
 
 def compile_all_models(input_shape,
                         network_depth,
@@ -99,7 +99,11 @@ def train_model(config):
     # setup data
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
     csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
-    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
+    transform = T.Compose([
+    T.ToTensor(),  # Convert to tensor
+    T.Normalize(mean=[0.0], std=[1.0]) ])
+
+    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path, transform=transform)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
     # setup device
@@ -114,7 +118,7 @@ def train_model(config):
         for i, (inputs, survival_times) in enumerate(dataloader):
             # process inputs data
             inputs = inputs.to(device)
-            inputs = inputs.squeeze(2) #added due to dimension mismatch
+            #inputs = inputs.squeeze(2) #no need since changed the dataloader
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
 
