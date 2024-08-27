@@ -9,14 +9,14 @@ if __name__ =='__main__':
     'input_shape': (5, 128, 128, 128), 
     'network_depth': 4, 
     'no_convolutions': 2, 
-    'conv_filter_no_init': 8, #16, 
+    'conv_filter_no_init': 64, 
     'conv_kernel_size': 3, 
-    'latent_representation_dim': 64, #128, 
+    'latent_representation_dim': 256,
     'dropout_value': 0.1, 
     'use_batch_normalization': False, 
     'activation': "relu", 
     "lr": 1e-4, 
-    "epochs": 10
+    "epochs": 50
     }
 
     # search_space = { #l1, l2???

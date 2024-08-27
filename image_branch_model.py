@@ -200,18 +200,8 @@ def survival_loss(mu, logsigma, x, delta):
     :param delta: Event indicator (1 if event occurred, 0 if censored), tensor of shape (batch_size,)
     :return: Computed loss, scalar value
     """
-    print("This is mu", mu)
-    print("This is logsigma", logsigma)
-    print("This is x", x)
-    print("This is delta", delta)
-    
     x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
-    print("This is x_scaled", x_scaled)
-
     nll = torch.sum(x_scaled + delta * logsigma + (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
-    print("This is nll term 1", x_scaled)
-    print("This is nll term 2", delta * logsigma)
-    print("This is nll term 3", (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
 
     # calculate MSE for evaluating model
     MSE_loss = nn.MSELoss()

@@ -1,9 +1,11 @@
+import os
 import torch
 import torch.optim as optim
 from ray import train
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 from image_branch_utils import GBMdataset
 from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
 from image_branch_model import reconstruction_loss, survival_loss
@@ -86,12 +88,24 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
     
     mu, sigma = latent_params[:, 0], latent_params[:, 1]
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)
-    print("this is the reconstruction loss", reconstruction_loss)
     survival_loss, MSE = survival_loss_fn(mu, sigma, x, delta)
-    print("this is the survival loss", survival_loss)
     total_loss = reconstruction_loss.mean() + survival_loss.mean()
-    print("this is the total loss", total_loss)
     return total_loss, reconstruction_loss.mean(), survival_loss.mean(), MSE
+
+
+def plot_loss_curves(loss_plot_out_dir, epoch_losses):
+
+    # Report and print epoch losses
+    for key in epoch_losses:  
+        plt.figure(figsize=(5, 3))
+
+        if epoch_losses[key].size()[0] != 1: # don't plot if there's just 1 item
+            losses = [loss.cpu().item() for loss in epoch_losses[key]]
+            plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
+            plt.xlabel('Epochs')
+            plt.ylabel(key)
+
+            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve.png"))
 
 
 def train_model(config): 
@@ -99,6 +113,7 @@ def train_model(config):
     # setup data
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
     csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
+    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset"
     dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
@@ -106,24 +121,31 @@ def train_model(config):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
+    # set up model and optimizer
+    model, optimizer = model_fn(config)
+    model = model.to(device)
+
+    # If multiple GPUs are available, wrap the model with DataParallel
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs")
+        model = torch.nn.DataParallel(model)
+    else:
+        print("Using a single GPU")
+
+    epoch_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0, "surv_loss": 0.0}
     epochs = config["epochs"]
     for epoch in range(epochs):
-        print("current epoch:", epoch)
-        running_loss = 0.0
-        running_MSE = 0.0
+        print("current epoch:", epoch+1)
+        running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0, "surv_loss": 0.0}
+        model.train()
         for i, (inputs, survival_times) in enumerate(dataloader):
             # process inputs data
             inputs = inputs.to(device)
             inputs = inputs.squeeze(2) #added due to dimension mismatch
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
-
-            # set up model and optimizer
-            model, optimizer = model_fn(config)
-            model = model.to(device)
-            model.train()
-            optimizer.zero_grad()
             
+            optimizer.zero_grad()
             reconstruction, latent_params = model(inputs)
             total_loss, rec_loss, surv_loss, MSE = compute_combined_loss(
                 reconstruction, inputs, latent_params, survival_times,
@@ -131,13 +153,21 @@ def train_model(config):
             )
             total_loss.backward()
             optimizer.step()
-            running_loss += total_loss.item()
-            running_MSE += MSE
+            running_losses["loss"] += total_loss.item()
+            running_losses["MSE"] += MSE
+            running_losses["rec_loss"] += rec_loss
+            running_losses["surv_loss"] += surv_loss
 
-        train.report({"loss": running_loss/len(dataloader)})
-        print(f"Epoch {epoch+1}/{epochs}, Total Loss: {running_loss/len(dataloader):.4f}")
-        print(f"Epoch {epoch+1}/{epochs}, MSE: {running_MSE/len(dataloader):.4f}")
+        # Report and print epoch losses
+        for key in running_losses:
+            avg_loss = running_losses[key] / len(dataloader)
+            if key == "loss":
+                train.report({key: avg_loss})
+            print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
+            epoch_losses[key] += running_losses[key]
+
         torch.cuda.empty_cache() 
+        plot_loss_curves(loss_plot_out_dir, epoch_losses)
 
     print("Training Finished!")
 
