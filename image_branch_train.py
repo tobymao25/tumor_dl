@@ -199,3 +199,14 @@ def run_hyperparameter_search(search_space, num_samples):
     print(f"Best trial config: {best_trial.config}")
     print(f"Best trial final validation loss: {best_trial.last_result['loss']}")
 
+def plot_survival_curve(mu, sigma):
+    t = torch.arange(0,1731)
+    S = S = 1 / (1 + torch.exp((torch.log(t) - mu) / sigma))
+    plt.figure(figsize=(10, 6))
+    plt.plot(t, S, label=f'Survival Probability (mu={mu.item()}, sigma={sigma.item()})')
+    plt.xlabel('t (Survival Time)')
+    plt.ylabel('S (Survival Probability)')
+    plt.title('Survival Probability vs. Survival Time')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
