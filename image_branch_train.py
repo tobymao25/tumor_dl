@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from image_branch_utils import GBMdataset
 from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
 from image_branch_model import reconstruction_loss, survival_loss
-import torchvision.transforms as T
+#import torchvision.transforms as T
 
 def compile_all_models(input_shape,
                         network_depth,
@@ -99,7 +99,7 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
     for key in epoch_losses:  
         plt.figure(figsize=(5, 3))
 
-        losses = [loss.cpu().item() for loss in epoch_losses[key]]
+        losses = epoch_losses[key]
         plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
         plt.xlabel('Epochs')
         plt.ylabel(key)
@@ -113,11 +113,11 @@ def train_model(config):
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
     csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
     loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset"
-    transform = T.Compose([
-    T.ToTensor(),  # Convert to tensor
-    T.Normalize(mean=[0.0], std=[1.0]) ])
+    # transform = T.Compose([
+    # T.ToTensor(),  # Convert to tensor
+    # T.Normalize(mean=[0.0], std=[1.0]) ])
 
-    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path, transform=transform)
+    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
     dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
     # setup device
@@ -142,9 +142,10 @@ def train_model(config):
         running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0, "surv_loss": 0.0}
         model.train()
         for i, (inputs, survival_times) in enumerate(dataloader):
+            print("batch", i, "out of", len(dataloader))
             # process inputs data
             inputs = inputs.to(device)
-            #inputs = inputs.squeeze(2) #no need since changed the dataloader
+            inputs = inputs.squeeze(2) #no need since changed the dataloader
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
             
@@ -157,9 +158,9 @@ def train_model(config):
             total_loss.backward()
             optimizer.step()
             running_losses["loss"] += total_loss.item()
-            running_losses["MSE"] += MSE
-            running_losses["rec_loss"] += rec_loss
-            running_losses["surv_loss"] += surv_loss
+            running_losses["MSE"] += MSE.item()
+            running_losses["rec_loss"] += rec_loss.item()
+            running_losses["surv_loss"] += surv_loss.item()
 
         # Report and print epoch losses
         for key in running_losses:
@@ -167,7 +168,7 @@ def train_model(config):
             if key == "loss":
                 train.report({key: avg_loss})
             print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
-            epoch_losses[key].append(running_losses[key])
+            epoch_losses[key].append(avg_loss)
 
         torch.cuda.empty_cache() 
         plot_loss_curves(loss_plot_out_dir, epoch_losses)

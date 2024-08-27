@@ -49,6 +49,14 @@ class GBMdataset(Dataset):
         resize_transform = tio.transforms.Resize(self.target_dimensions)
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
+    
+    def _normalize_image(self, image):
+        """Normalize the image by subtracting mean and dividing by std."""
+        mean = np.mean(image)
+        std = np.std(image)
+        if std == 0:  # To avoid division by zero
+            std = 1.0
+        return (image - mean) / std
 
     def __getitem__(self, idx):
         # Get the patient ID
@@ -69,22 +77,20 @@ class GBMdataset(Dataset):
         seg = self._resample_image(seg_path)
 
         # Resize the images to target dimensions (e.g., 128x128x128)
-        t1 = np.squeeze(self._resize_image(t1))
-        t1ce = np.squeeze(self._resize_image(t1ce))
-        flair = np.squeeze(self._resize_image(flair))
-        t2 = np.squeeze(self._resize_image(t2))
-        seg = np.squeeze(self._resize_image(seg))
+        t1 = self._resize_image(t1)
+        t1ce = self._resize_image(t1ce)
+        flair = self._resize_image(flair)
+        t2 = self._resize_image(t2)
+        seg = self._resize_image(seg)
 
         # Print the shape of the image after resampling and resizing
         #print(f"Image shape after resampling and resizing: {t1.shape}")
         
         # Normalize the images (for each modality)
-        if self.transform:
-            t1 = self.transform(t1)
-            t1ce = self.transform(t1ce)
-            flair = self.transform(flair)
-            t2 = self.transform(t2)
-            seg = self.transform(seg)
+        t1 = self._normalize_image(t1)
+        t1ce = self._normalize_image(t1ce)
+        flair = self._normalize_image(flair)
+        t2 = self._normalize_image(t2)
         
         # Stack the images and segmentation into a single tensor
         image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
@@ -124,3 +130,4 @@ class GaussianNoise(nn.Module):
             noise = torch.clip(noise, 0, 1.0)
             return noise
         return input_tensor 
+
