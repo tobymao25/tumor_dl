@@ -99,13 +99,12 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
     for key in epoch_losses:  
         plt.figure(figsize=(5, 3))
 
-        if epoch_losses[key].size()[0] != 1: # don't plot if there's just 1 item
-            losses = [loss.cpu().item() for loss in epoch_losses[key]]
-            plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
-            plt.xlabel('Epochs')
-            plt.ylabel(key)
+        losses = [loss.cpu().item() for loss in epoch_losses[key]]
+        plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
+        plt.xlabel('Epochs')
+        plt.ylabel(key)
 
-            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve.png"))
+        plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve.png"))
 
 
 def train_model(config): 
@@ -136,7 +135,7 @@ def train_model(config):
     else:
         print("Using a single GPU")
 
-    epoch_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0, "surv_loss": 0.0}
+    epoch_losses = {"loss": [], "MSE": [], "rec_loss": [], "surv_loss": []}
     epochs = config["epochs"]
     for epoch in range(epochs):
         print("current epoch:", epoch+1)
@@ -168,7 +167,7 @@ def train_model(config):
             if key == "loss":
                 train.report({key: avg_loss})
             print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
-            epoch_losses[key] += running_losses[key]
+            epoch_losses[key].append(running_losses[key])
 
         torch.cuda.empty_cache() 
         plot_loss_curves(loss_plot_out_dir, epoch_losses)
