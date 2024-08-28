@@ -201,7 +201,7 @@ def survival_loss(mu, logsigma, x, delta):
     :return: Computed loss, scalar value
     """
     x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
-    nll = torch.sum(x_scaled + delta * logsigma + (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
+    nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))
 
     # calculate MSE for evaluating model
     MSE_loss = nn.MSELoss()
@@ -216,7 +216,7 @@ def loglogistic_activation(mu_logsig):
     :param mu_logsig: Tensor containing [mu, log(sigma)]
     :return: Tensor with updated mu and log(sigma)
     """
-    n = 365  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
+    n = 1  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
     p = 0.95  # quantile
 
     # Clip mu between the min and max survival from brats data set, change this in the future
