@@ -200,14 +200,25 @@ def survival_loss(mu, logsigma, x, delta):
     :param delta: Event indicator (1 if event occurred, 0 if censored), tensor of shape (batch_size,)
     :return: Computed loss, scalar value
     """
+    print("these are mu")
+    print(mu)
+    print("there are logsigma")
+    print(logsigma)
+    print("there are the labels, x")
+    print(x)
+
     x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
-    nll = torch.sum(x_scaled + delta * logsigma + (1 + delta) * torch.log(1 + torch.exp(-x_scaled)))
+    nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))
 
     # calculate MSE for evaluating model
-    MSE_loss = nn.MSELoss()
+    MSE_loss = nn.MSELoss(reduction='mean')
+    print("----------- for checking mse -----------")
+    print("pred", torch.exp(mu))
+    print("label", x)
     MSE = MSE_loss(torch.exp(mu), x)
 
     return nll, MSE #no need to negate and exponentiate 
+
 
 def loglogistic_activation(mu_logsig):
     """
@@ -216,11 +227,11 @@ def loglogistic_activation(mu_logsig):
     :param mu_logsig: Tensor containing [mu, log(sigma)]
     :return: Tensor with updated mu and log(sigma)
     """
-    n = 365  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
+    n = 1  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
     p = 0.95  # quantile
 
     # Clip mu between the min and max survival from brats data set, change this in the future
-    mu = torch.clamp(mu_logsig[:, 0], -3, 3) #0.6931, 7.4593)
+    mu = torch.clamp(mu_logsig[:, 0], 0.6931, 7.4593)
 
     # Calculate sigma by exponentiating the second column
     sig = torch.exp(mu_logsig[:, 1])

@@ -87,6 +87,7 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
                           reconstruction_loss_fn, survival_loss_fn, delta=1):
     
     mu, sigma = latent_params[:, 0], latent_params[:, 1]
+    plot_survival_curve(mu.detach().cpu()[0], sigma.detach().cpu()[0])
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)
     survival_loss, MSE = survival_loss_fn(mu, sigma, x, delta)
     total_loss = reconstruction_loss.mean() + survival_loss.mean()
@@ -105,6 +106,19 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
         plt.ylabel(key)
 
         plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve.png"))
+
+
+def plot_survival_curve(mu, sigma):
+    t = torch.arange(0,1731)
+    S = S = 1 / (1 + torch.exp((torch.log(t) - mu) / sigma))
+    plt.figure(figsize=(10, 6))
+    plt.plot(t, S, label=f'Survival Probability (mu={mu.item()}, sigma={sigma.item()})')
+    plt.xlabel('t (Survival Time)')
+    plt.ylabel('S (Survival Probability)')
+    plt.title('Survival Probability vs. Survival Time')
+    plt.grid(True)
+    plt.legend()
+    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/survival_curve.png")
 
 
 def train_model(config): 
@@ -143,6 +157,8 @@ def train_model(config):
         model.train()
         for i, (inputs, survival_times) in enumerate(dataloader):
             print("batch", i, "out of", len(dataloader))
+            #print("max", inputs.max())
+            #print("min", inputs.min())
             # process inputs data
             inputs = inputs.to(device)
             inputs = inputs.squeeze(2) #no need since changed the dataloader
@@ -199,14 +215,3 @@ def run_hyperparameter_search(search_space, num_samples):
     print(f"Best trial config: {best_trial.config}")
     print(f"Best trial final validation loss: {best_trial.last_result['loss']}")
 
-def plot_survival_curve(mu, sigma):
-    t = torch.arange(0,1731)
-    S = S = 1 / (1 + torch.exp((torch.log(t) - mu) / sigma))
-    plt.figure(figsize=(10, 6))
-    plt.plot(t, S, label=f'Survival Probability (mu={mu.item()}, sigma={sigma.item()})')
-    plt.xlabel('t (Survival Time)')
-    plt.ylabel('S (Survival Probability)')
-    plt.title('Survival Probability vs. Survival Time')
-    plt.grid(True)
-    plt.legend()
-    plt.show()
