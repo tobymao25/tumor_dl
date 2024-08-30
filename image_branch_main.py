@@ -7,11 +7,11 @@ if __name__ =='__main__':
     
     config = {
     'input_shape': (5, 128, 128, 128), 
-    'network_depth': 4, 
-    'no_convolutions': 2, 
+    'network_depth': 4, # change to 6 or 8
+    'no_convolutions': 2, #3-6
     'conv_filter_no_init': 64, 
     'conv_kernel_size': 3, 
-    'latent_representation_dim': 256,
+    'latent_representation_dim': 256, #512
     'dropout_value': 0.1, 
     'use_batch_normalization': False, 
     'activation': "relu", 

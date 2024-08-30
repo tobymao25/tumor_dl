@@ -80,7 +80,11 @@ class encoder(nn.Module):
 
 
 def downsample_fn(depth):
-    if depth == 4:
+    if depth == 6:
+        return [(2, 2, 2)] * 6 
+    elif depth == 8:
+        return [(1.5, 1.5, 1.5)] * 8 
+    elif depth == 4:
         return [(2, 2, 2), (2, 2, 2), (2, 2, 2), (2, 2, 2)]  # Increase depth upsample factor to 2
     elif depth == 2:
         return [(4, 4, 4), (4, 4, 4)]  # Increase depth upsample factor to 4 if needed
