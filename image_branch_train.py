@@ -86,6 +86,7 @@ def model_fn(config):
 def compute_combined_loss(reconstruction, target, latent_params, x, 
                           reconstruction_loss_fn, survival_loss_fn, delta=1):
     
+    print("here are the latent params:", latent_params)
     mu, sigma = latent_params[:, 0], latent_params[:, 1]
     plot_survival_curve(mu.detach().cpu()[0], sigma.detach().cpu()[0])
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)
@@ -167,6 +168,9 @@ def train_model(config):
             
             optimizer.zero_grad()
             reconstruction, latent_params = model(inputs)
+            if epoch % 10 == 0 & i == 0:
+                torch.save(inputs,  f'inputs_tensor_epoch{epoch}.pt')
+                torch.save(reconstruction, f'reconstruction_tensor_epoch{epoch}.pt')
             total_loss, rec_loss, surv_loss, MSE = compute_combined_loss(
                 reconstruction, inputs, latent_params, survival_times,
                 reconstruction_loss, survival_loss, delta

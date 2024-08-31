@@ -211,12 +211,25 @@ def survival_loss(mu, logsigma, x, delta):
     print("there are the labels, x")
     print(x)
 
+    # New loss 1
+    # sigma = torch.exp(logsigma)
+    # sigma = sigma.clamp(min=0.001)
+    # mu = torch.exp(mu)
+    # # Calculate the NLL loss
+    # log_x = torch.log(x + 0.001)  # Add epsilon to prevent log(0)
+    # nll = 0.5 * torch.log(2 * torch.pi * sigma ** 2) + 0.5 * ((log_x - mu) ** 2) / (sigma ** 2)
+    # #(------- trying out another loss function)
+
+    # New loss 2
+    ## using the automatic implementation torch.nn.GaussianNLLLoss
+    #nll_loss = nn.GaussianNLLLoss(eps=1e-06, reduction="mean")
+    #nll = nll_loss(torch.exp(mu), x, torch.exp(logsigma))
+
     x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
     nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))
 
     # calculate MSE for evaluating model
     MSE_loss = nn.MSELoss(reduction='mean')
-    print("----------- for checking mse -----------")
     print("pred", torch.exp(mu))
     print("label", x)
     MSE = MSE_loss(torch.exp(mu), x)
@@ -266,6 +279,7 @@ class GlioNet(nn.Module):
     def forward(self, x):
         latent_representation = self.encoder(x)
         reconstruction = self.decoder(latent_representation)
+        print("this is the latent representation", latent_representation)
         latent_params = self.latent_param_model(latent_representation)
         return reconstruction, latent_params
 
