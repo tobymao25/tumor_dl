@@ -111,23 +111,16 @@ class GBMdataset(Dataset):
         
         return image, survival_time
 
-
-def addnoise(input_tensor, noise_factor = 0.3):
-    inputs = input_tensor
-    noise = inputs + torch.rand_like(inputs) * noise_factor
-    noise = torch.clip (noise,0,1.)
-    return noise
-
-
+#this is the modified Gaussian noise, could try to not use it or use it since it is correct now. 
 class GaussianNoise(nn.Module):
-    def __init__(self, noise_factor=0.3):
+    def __init__(self, noise_factor=0.1):
         super(GaussianNoise, self).__init__()
         self.noise_factor = noise_factor
 
     def forward(self, input_tensor):
-        if self.training:  
-            noise = input_tensor + torch.rand_like(input_tensor) * self.noise_factor
-            noise = torch.clip(noise, 0, 1.0)
-            return noise
-        return input_tensor 
-
+        if self.training:
+            std = torch.std(input_tensor)
+            noise = torch.randn_like(input_tensor) * std * self.noise_factor
+            noisy_tensor = input_tensor + noise  
+            return noisy_tensor
+        return input_tensor
