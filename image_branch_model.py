@@ -220,10 +220,10 @@ def survival_loss(mu, logsigma, x, delta):
     # nll = 0.5 * torch.log(2 * torch.pi * sigma ** 2) + 0.5 * ((log_x - mu) ** 2) / (sigma ** 2)
     # #(------- trying out another loss function)
 
-    # New loss 2
-    ## using the automatic implementation torch.nn.GaussianNLLLoss
-    #nll_loss = nn.GaussianNLLLoss(eps=1e-06, reduction="mean")
-    #nll = nll_loss(torch.exp(mu), x, torch.exp(logsigma))
+    # # New loss 2
+    # # using the automatic implementation torch.nn.GaussianNLLLoss
+    # nll_loss = nn.GaussianNLLLoss(eps=1e-06, reduction="mean")
+    # nll = nll_loss(torch.exp(mu), x, torch.exp(logsigma))
 
     x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
     nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))

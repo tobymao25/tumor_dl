@@ -7,12 +7,12 @@ if __name__ =='__main__':
     
     config = {
     'input_shape': (5, 128, 128, 128), 
-    'network_depth': 8, # 2, 4, 6, 8
-    'no_convolutions': 4, #3-6
-    'conv_filter_no_init': 64, 
+    'network_depth': 6, # 2, 4, 6, 8
+    'no_convolutions': 6, #3-6
+    'conv_filter_no_init': 32, 
     'conv_kernel_size': 3, 
-    'latent_representation_dim': 512, #512
-    'dropout_value': 0.01, 
+    'latent_representation_dim': 1024, #512
+    'dropout_value': 0.1, 
     'use_batch_normalization': False, 
     'activation': "leakyrelu", 
     "lr": 1e-4, 

@@ -5,6 +5,7 @@
 #SBATCH --partition=gpuq-a100
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=10
+#SBATCH --mem=36G
 
 #SBATCH --output=/home/ltang35/tumor_dl/out/%j.out
 #SBATCH --mail-type=ALL
@@ -15,4 +16,4 @@ source ~/.bashrc
 conda activate monai_env
 
 #python main.py --mode inference --model_path ./path/to/model_6_07_2024_batch1.pth --data_path ./path/to/dataset/Task01_BrainTumour/imagesTr/BRATS_001.nii.gz
-python image_branch_main.py
+python image_branch_main.py 

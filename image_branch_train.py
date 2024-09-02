@@ -6,6 +6,7 @@ from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+from datetime import datetime
 from image_branch_utils import GBMdataset
 from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
 from image_branch_model import reconstruction_loss, survival_loss
@@ -102,11 +103,14 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
         plt.figure(figsize=(5, 3))
 
         losses = epoch_losses[key]
+        losses = losses[1:] # do not plot the loss of the first epoch
         plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
         plt.xlabel('Epochs')
         plt.ylabel(key)
 
-        plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve.png"))
+        # Get the current timestamp
+        timestamp = datetime.now().strftime('%Y%m%d')
+        plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}.png"))
 
 
 def plot_survival_curve(mu, sigma):
@@ -119,15 +123,15 @@ def plot_survival_curve(mu, sigma):
     plt.title('Survival Probability vs. Survival Time')
     plt.grid(True)
     plt.legend()
-    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/survival_curve.png")
+    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/out/survival_curve.png")
 
 
 def train_model(config): 
 
     # setup data
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
-    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
-    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset"
+    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_small.csv"
+    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
     # transform = T.Compose([
     # T.ToTensor(),  # Convert to tensor
     # T.Normalize(mean=[0.0], std=[1.0]) ])
@@ -166,17 +170,19 @@ def train_model(config):
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
             
-            optimizer.zero_grad()
             reconstruction, latent_params = model(inputs)
             if epoch % 10 == 0 & i == 0:
-                torch.save(inputs,  f'/home/ltang35/tumor_dl/TrainingDataset/inputs_tensor_epoch{epoch}.pt')
-                torch.save(reconstruction, f'/home/ltang35/tumor_dl/TrainingDataset/reconstruction_tensor_epoch{epoch}.pt')
+                torch.save(inputs,  f'/home/ltang35/tumor_dl/TrainingDataset/out/inputs_tensor_epoch{epoch}.pt')
+                torch.save(reconstruction, f'/home/ltang35/tumor_dl/TrainingDataset/out/reconstruction_tensor_epoch{epoch}.pt')
             total_loss, rec_loss, surv_loss, MSE = compute_combined_loss(
                 reconstruction, inputs, latent_params, survival_times,
                 reconstruction_loss, survival_loss, delta
             )
             total_loss.backward()
+            #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipped (not used now)
             optimizer.step()
+            optimizer.zero_grad()
+
             running_losses["loss"] += total_loss.item()
             running_losses["MSE"] += MSE.item()
             running_losses["rec_loss"] += rec_loss.item()
