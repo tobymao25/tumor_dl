@@ -224,8 +224,8 @@ def survival_loss(mu, logsigma, x, delta):
     # # using the automatic implementation torch.nn.GaussianNLLLoss
     # nll_loss = nn.GaussianNLLLoss(eps=1e-06, reduction="mean")
     # nll = nll_loss(torch.exp(mu), x, torch.exp(logsigma))
-
-    x_scaled = (torch.log(x) - mu) / torch.exp(logsigma)
+    sigma = torch.clamp(torch.exp(logsigma), min=0.1) #clamp to prevent gradient explosion
+    x_scaled = (torch.log(x) - mu) / sigma 
     nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))
 
     # calculate MSE for evaluating model
