@@ -94,7 +94,7 @@ def downsample_fn(depth):
 
 class Decoder3D(nn.Module):
     def __init__(self, conv_shape, network_depth, no_convolutions, conv_filter_no_init,
-                 conv_kernel_size, latent_representation_dim, output_channels=5, l1=0.0, l2=0.0,
+                 conv_kernel_size, latent_representation_dim, output_channels=2, l1=0.0, l2=0.0,
                  dropout_value=0.0, use_batch_normalization=False, activation='relu'):
         super(Decoder3D, self).__init__()
         self.conv_shape = conv_shape  # Shape of the feature map at the start of the decoder
@@ -173,18 +173,18 @@ class Decoder3D(nn.Module):
 class LatentParametersModel(nn.Module):
     def __init__(self, latent_representation_dim, l1=0.0, l2=0.0):
         super(LatentParametersModel, self).__init__()
-        self.mu_sigma_layer = nn.Linear(
+        self.mu_layer = nn.Linear(
             in_features=latent_representation_dim, 
-            out_features=2
+            out_features=1
         )
-        nn.init.xavier_uniform_(self.mu_sigma_layer.weight)
-        nn.init.zeros_(self.mu_sigma_layer.bias)
+        nn.init.xavier_uniform_(self.mu_layer.weight)
+        nn.init.zeros_(self.mu_layer.bias)
         self.l1 = l1
         self.l2 = l2
     
     def forward(self, x):
-        mu_sigma = self.mu_sigma_layer(x)
-        mu_sigma = loglogistic_activation(mu_sigma)
+        mu_sigma = self.mu_layer(x)
+        #mu_sigma = loglogistic_activation(mu_sigma)
         return mu_sigma
 
 
@@ -194,7 +194,7 @@ def reconstruction_loss(y_true, y_pred):
     return reduced_loss
 
 
-def survival_loss(mu, logsigma, x, delta):
+def survival_loss(mu, x):
     """
     Custom loss function based on the negative log-likelihood.
 
@@ -206,8 +206,6 @@ def survival_loss(mu, logsigma, x, delta):
     """
     print("these are mu")
     print(mu)
-    print("there are logsigma")
-    print(logsigma)
     print("there are the labels, x")
     print(x)
 
@@ -224,26 +222,25 @@ def survival_loss(mu, logsigma, x, delta):
     # # using the automatic implementation torch.nn.GaussianNLLLoss
     # nll_loss = nn.GaussianNLLLoss(eps=1e-06, reduction="mean")
     # nll = nll_loss(torch.exp(mu), x, torch.exp(logsigma))
+    """
     sigma = torch.clamp(torch.exp(logsigma), min=0.1) #clamp to prevent gradient explosion
     x_scaled = (torch.log(x) - mu) / sigma 
-    nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))
+    nll = torch.sum(x_scaled + delta * logsigma + (1 - delta) * torch.log(1 + torch.exp(-x_scaled)))"""
 
     # calculate MSE for evaluating model
     MSE_loss = nn.MSELoss(reduction='mean')
-    print("pred", torch.exp(mu))
-    print("label", x)
-    MSE = MSE_loss(torch.exp(mu), x)
+    MSE = MSE_loss(mu, x)
 
-    return nll, MSE #no need to negate and exponentiate 
+    return MSE
 
-
+"""
 def loglogistic_activation(mu_logsig):
-    """
+    
     Activation which ensures mu is between -3 and 3 and sigma is such that
     prediction is not more precise than 1 / n of a year.
     :param mu_logsig: Tensor containing [mu, log(sigma)]
     :return: Tensor with updated mu and log(sigma)
-    """
+    
     n = 1  # 1 / n is the fraction of the year in which at least p quantile of the distribution lies
     p = 0.95  # quantile
 
@@ -267,7 +264,7 @@ def loglogistic_activation(mu_logsig):
     # Concatenate mu and logsig along the last axis
     new = torch.cat((mu, logsig), dim=1)
     
-    return new
+    return new"""
 
 class GlioNet(nn.Module):
     def __init__(self, encoder, decoder, latent_param_model):

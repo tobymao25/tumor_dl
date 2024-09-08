@@ -6,9 +6,9 @@ from image_branch_train import train_model, run_hyperparameter_search
 if __name__ =='__main__':
     
     config = {
-    'input_shape': (5, 128, 128, 128), 
-    'network_depth': 6, # 2, 4, 6, 8
-    'no_convolutions': 6, #3-6
+    'input_shape': (2, 128, 128, 128), 
+    'network_depth': 4, # 2, 4, 6, 8
+    'no_convolutions': 3, #3-6
     'conv_filter_no_init': 32, 
     'conv_kernel_size': 3, 
     'latent_representation_dim': 1024, #512
@@ -16,7 +16,7 @@ if __name__ =='__main__':
     'use_batch_normalization': False, 
     'activation': "leakyrelu", 
     "lr": 1e-4, 
-    "epochs": 50
+    "epochs": 100
     }
 
     print(config)

@@ -85,15 +85,14 @@ def model_fn(config):
 
 
 def compute_combined_loss(reconstruction, target, latent_params, x, 
-                          reconstruction_loss_fn, survival_loss_fn, delta=1):
-    
-    print("here are the latent params:", latent_params)
-    mu, sigma = latent_params[:, 0], latent_params[:, 1]
-    plot_survival_curve(mu.detach().cpu()[0], sigma.detach().cpu()[0])
+                          reconstruction_loss_fn, survival_loss_fn):
+    print("here are mu:", latent_params)
+    mu = latent_params
+    #plot_survival_curve(mu.detach().cpu()[0])
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)
-    survival_loss, MSE = survival_loss_fn(mu, sigma, x, delta)
-    total_loss = reconstruction_loss.mean() + survival_loss.mean()
-    return total_loss, reconstruction_loss.mean(), survival_loss.mean(), MSE
+    MSE = survival_loss_fn(mu, x)
+    total_loss = reconstruction_loss.mean()+MSE.mean()
+    return total_loss, reconstruction_loss.mean(), MSE.mean()
 
 
 def plot_loss_curves(loss_plot_out_dir, epoch_losses):
@@ -112,7 +111,7 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
         timestamp = datetime.now().strftime('%Y%m%d')
         plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}.png"))
 
-
+"""
 def plot_survival_curve(mu, sigma):
     t = torch.arange(0,1731)
     S = S = 1 / (1 + torch.exp((torch.log(t) - mu) / sigma))
@@ -123,21 +122,21 @@ def plot_survival_curve(mu, sigma):
     plt.title('Survival Probability vs. Survival Time')
     plt.grid(True)
     plt.legend()
-    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/out/survival_curve.png")
+    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/out/survival_curve.png")"""
 
 
 def train_model(config): 
-
     # setup data
-    image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
-    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_small.csv"
-    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
-    # transform = T.Compose([
-    # T.ToTensor(),  # Convert to tensor
-    # T.Normalize(mean=[0.0], std=[1.0]) ])
+    image_dir = "/projects/gbm_modeling/TrainingDataset/images"
+    csv_path = "/projects/gbm_modeling/survival_data_fin.csv"
+    loss_plot_out_dir = "/projects/gbm_modeling/test/tumor_dl/out"
 
-    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
+    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=2)
+
+    # Fetch the first batch only
+    first_batch = next(iter(dataloader))
+    inputs, survival_times = first_batch
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -154,52 +153,59 @@ def train_model(config):
     else:
         print("Using a single GPU")
 
-    epoch_losses = {"loss": [], "MSE": [], "rec_loss": [], "surv_loss": []}
+    epoch_losses = {"loss": [], "MSE": [], "rec_loss": []}
     epochs = config["epochs"]
+
+    # Move the first batch to device
+    inputs = inputs.to(device)
+    survival_times = survival_times.to(device)
+    delta = torch.ones_like(survival_times).to(device)
+    
     for epoch in range(epochs):
-        print("current epoch:", epoch+1)
-        running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0, "surv_loss": 0.0}
+        print(f"Current epoch: {epoch+1}")
+        running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0}
         model.train()
-        for i, (inputs, survival_times) in enumerate(dataloader):
-            print("batch", i, "out of", len(dataloader))
-            #print("max", inputs.max())
-            #print("min", inputs.min())
-            # process inputs data
-            inputs = inputs.to(device)
-            inputs = inputs.squeeze(2) #no need since changed the dataloader
-            survival_times = survival_times.to(device)
-            delta = torch.ones_like(survival_times).to(device)
-            
-            reconstruction, latent_params = model(inputs)
-            if epoch % 10 == 0 & i == 0:
-                torch.save(inputs,  f'/home/ltang35/tumor_dl/TrainingDataset/out/inputs_tensor_epoch{epoch}.pt')
-                torch.save(reconstruction, f'/home/ltang35/tumor_dl/TrainingDataset/out/reconstruction_tensor_epoch{epoch}.pt')
-            total_loss, rec_loss, surv_loss, MSE = compute_combined_loss(
-                reconstruction, inputs, latent_params, survival_times,
-                reconstruction_loss, survival_loss, delta
-            )
-            total_loss.backward()
-            #torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) # gradient clipped (not used now)
-            optimizer.step()
-            optimizer.zero_grad()
 
-            running_losses["loss"] += total_loss.item()
-            running_losses["MSE"] += MSE.item()
-            running_losses["rec_loss"] += rec_loss.item()
-            running_losses["surv_loss"] += surv_loss.item()
+        # Process the first batch only
+        reconstruction, latent_params = model(inputs)
+        
+        # Save tensors and reconstructions every 10 epochs
+        if epoch % 10 == 0:
+            torch.save(inputs, f'/projects/gbm_modeling/test/tumor_dl/out/inputs_tensor_epoch{epoch}.pt')
+            torch.save(reconstruction, f'/projects/gbm_modeling/test/tumor_dl/out/reconstruction_tensor_epoch{epoch}.pt')
 
-        # Report and print epoch losses
+        total_loss, rec_loss, MSE = compute_combined_loss(
+            reconstruction, inputs, latent_params, survival_times,
+            reconstruction_loss, survival_loss
+        )
+        
+        total_loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+
+        running_losses["loss"] += total_loss.item()
+        running_losses["MSE"] += MSE.item()
+        running_losses["rec_loss"] += rec_loss.item()
+
+        # Average and report losses
         for key in running_losses:
-            avg_loss = running_losses[key] / len(dataloader)
-            if key == "loss":
-                train.report({key: avg_loss})
+            avg_loss = running_losses[key]
+            train.report({key: avg_loss})  # Reporting with Ray Tune
             print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
             epoch_losses[key].append(avg_loss)
 
-        torch.cuda.empty_cache() 
+        # Clear GPU cache
+        torch.cuda.empty_cache()
+
+        # Save the model checkpoint every 10 epochs
+        if epoch % 10 == 0:
+            torch.save(model.state_dict(), f'/projects/gbm_modeling/test/tumor_dl/out/model_epoch_{epoch}.pt')
+
+        # Plot loss curves after each epoch
         plot_loss_curves(loss_plot_out_dir, epoch_losses)
 
     print("Training Finished!")
+
 
 
 def run_hyperparameter_search(search_space, num_samples):
@@ -218,7 +224,7 @@ def run_hyperparameter_search(search_space, num_samples):
         scheduler=scheduler,  
         verbose=1, 
         resources_per_trial={"cpu": 10, "gpu": 1 if torch.cuda.is_available() else 0}, 
-        storage_path="/home/ltang35/tumor_dl/output", 
+        storage_path="/projects/gbm_modeling/test/tumor_dl/out/", 
     )
 
     best_trial = analysis.get_best_trial(metric="loss", mode="min", scope="last")

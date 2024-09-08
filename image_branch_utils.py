@@ -51,12 +51,21 @@ class GBMdataset(Dataset):
         return resized_image.data.numpy()
     
     def _normalize_image(self, image):
-        """Normalize the image by subtracting mean and dividing by std."""
-        mean = np.mean(image)
-        std = np.std(image)
-        if std == 0:  # To avoid division by zero
-            std = 1.0
-        return (image - mean) / std
+        """Normalize each 2D slice along the depth of the 3D image to [0, 1]."""
+        normalized_image = np.zeros_like(image)  # Create an array to hold the normalized image
+        for i in range(image.shape[2]):  # Loop through each slice along the third axis (depth)
+            slice_2d = image[:, :, i]  # Get the 2D slice
+            min_val = np.min(slice_2d)
+            max_val = np.max(slice_2d)
+            
+            # Normalize the slice to [0, 1], avoiding division by zero
+            if max_val > min_val:
+                normalized_image[:, :, i] = (slice_2d - min_val) / (max_val - min_val)
+            else:
+                normalized_image[:, :, i] = slice_2d  # If all values are the same, keep the original slice
+        
+        return normalized_image
+
 
     def __getitem__(self, idx):
         # Get the patient ID
@@ -93,8 +102,8 @@ class GBMdataset(Dataset):
         t2 = self._normalize_image(t2)
         
         # Stack the images and segmentation into a single tensor
-        image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
-
+        image = np.stack([t1, seg], axis=0)
+        image = torch.tensor(image, dtype=torch.float32).squeeze(1)
         # Print the size of the image after resampling, resizing, and normalization
         #print(f"Image shape after resampling, resizing, and normalization: {image.shape}")
         
