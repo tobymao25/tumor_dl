@@ -13,7 +13,7 @@ if __name__ =='__main__':
     'conv_kernel_size': 3, 
     'latent_representation_dim': 1024, #512
     'dropout_value': 0.1, 
-    'use_batch_normalization': False, 
+    'use_batch_normalization': True, 
     'activation': "leakyrelu", 
     "lr": 1e-4, 
     "epochs": 100

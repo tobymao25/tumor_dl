@@ -264,7 +264,8 @@ def loglogistic_activation(mu_logsig):
     # Concatenate mu and logsig along the last axis
     new = torch.cat((mu, logsig), dim=1)
     
-    return new"""
+    return new
+    """
 
 class GlioNet(nn.Module):
     def __init__(self, encoder, decoder, latent_param_model):

@@ -50,6 +50,21 @@ class GBMdataset(Dataset):
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
     
+    """
+    def _standardize_image(self, image):
+        standardized_image = np.zeros_like(image)  
+        for i in range(image.shape[2]):  
+            slice_2d = image[:, :, i]  
+            mean_val = np.mean(slice_2d)
+            std_val = np.std(slice_2d)
+            if std_val > 0:
+                standardized_image[:, :, i] = (slice_2d - mean_val) / std_val
+            else:
+                standardized_image[:, :, i] = slice_2d - mean_val
+        
+        return standardized_image
+    """
+
     def _normalize_image(self, image):
         """Normalize each 2D slice along the depth of the 3D image to [0, 1]."""
         normalized_image = np.zeros_like(image)  # Create an array to hold the normalized image
