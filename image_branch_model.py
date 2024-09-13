@@ -269,6 +269,56 @@ def loglogistic_activation(mu_logsig):
     
     return new
     """
+class UNet3D(nn.Module):
+    def __init__(self, input_shape, network_depth, no_convolutions, conv_filter_no_init, 
+                 conv_kernel_size, latent_representation_dim, output_channels=1, l1=0.0, l2=0.0, 
+                 dropout_value=0.0, use_batch_normalization=False, activation='relu'):
+        super(UNet3D, self).__init__()
+
+        # Encoder
+        self.encoder = encoder(
+            input_shape=input_shape,
+            network_depth=network_depth,
+            no_convolutions=no_convolutions,
+            conv_filter_no_init=conv_filter_no_init,
+            conv_kernel_size=conv_kernel_size,
+            latent_representation_dim=latent_representation_dim,
+            l1=l1,
+            l2=l2,
+            dropout_value=dropout_value,
+            use_batch_normalization=use_batch_normalization,
+            activation=activation
+        )
+        
+        # Calculate the shape of the feature map at the end of the encoder
+        conv_shape = self.encoder.feature_map_size
+        print(f'this is conv shape: {conv_shape}')
+        # Decoder
+        self.decoder = Decoder3D(
+            conv_shape=conv_shape[1:],  # Remove the batch dimension
+            network_depth=network_depth,
+            no_convolutions=no_convolutions,
+            conv_filter_no_init=conv_filter_no_init,
+            conv_kernel_size=conv_kernel_size,
+            latent_representation_dim=latent_representation_dim,
+            output_channels=output_channels,
+            l1=l1,
+            l2=l2,
+            dropout_value=dropout_value,
+            use_batch_normalization=use_batch_normalization,
+            activation=activation
+        )
+
+    def forward(self, x):
+        # Encoder forward pass
+        x = self.encoder(x)
+        skip_connections = list(self.encoder.skip_connections) 
+        for idx, i in enumerate(skip_connections):
+            print(f'this is {idx} layer and its skip connection is {i.shape}')
+        # Decoder forward pass with skip connections
+        x = self.decoder(x, skip_connections)
+        
+        return x
 
 class GlioNet(nn.Module):
     def __init__(self, encoder, decoder, latent_param_model):
