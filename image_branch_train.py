@@ -8,79 +8,35 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from datetime import datetime
 from image_branch_utils import GBMdataset
-from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet
+from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet, UNet3D
 from image_branch_model import reconstruction_loss, survival_loss
 #import torchvision.transforms as T
 
-def compile_all_models(input_shape,
-                        network_depth,
-                        no_convolutions,
-                        conv_filter_no_init,
-                        conv_kernel_size,
-                        latent_representation_dim,
-                        dropout_value,
-                        use_batch_normalization,
-                        activation,
-                        l1,
-                        l2,
-                        lr=1e-3):
-    
-    encoder_model = encoder(
-        input_shape=input_shape,
-        network_depth=network_depth,
-        no_convolutions=no_convolutions,
-        conv_filter_no_init=conv_filter_no_init,
-        conv_kernel_size=conv_kernel_size,
-        latent_representation_dim=latent_representation_dim,
-        l1=l1,
-        l2=l2,
-        dropout_value=dropout_value,
-        use_batch_normalization=use_batch_normalization,
-        activation=activation,
-        gaussian_noise_factor = 0.3
-    )
-
-    conv_shape = encoder_model.feature_map_size[1:]
-    decoder_model = Decoder3D(
-        conv_shape=conv_shape,
-        network_depth=network_depth,
-        no_convolutions=no_convolutions,
-        conv_filter_no_init=conv_filter_no_init,
-        conv_kernel_size=conv_kernel_size,
-        latent_representation_dim=latent_representation_dim,
-        dropout_value=dropout_value,
-        use_batch_normalization=use_batch_normalization,
-        activation=activation
-    )
-
-    latent_param_model = LatentParametersModel(
-        latent_representation_dim=latent_representation_dim,
-        l1=l1,
-        l2=l2
-    )
-
-    model = GlioNet(encoder_model, decoder_model, latent_param_model)
-
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
-    return model, optimizer
-
 
 def model_fn(config):
-    model, optimizer = compile_all_models(
+    unet_model = UNet3D(
         input_shape=config["input_shape"],
         network_depth=config["network_depth"],
         no_convolutions=config["no_convolutions"],
         conv_filter_no_init=config["conv_filter_no_init"],
         conv_kernel_size=config["conv_kernel_size"],
         latent_representation_dim=config["latent_representation_dim"],
+        output_channels=1, # new
+        l1=config["l1"],
+        l2=config["l2"],
         dropout_value=config["dropout_value"],
         use_batch_normalization=config["use_batch_normalization"],
-        activation=config["activation"],
-        l1=0.0,
-        l2=0.0,
-        lr=config["lr"]
-    )
+        activation=config["activation"])
+
+    latent_param_model = LatentParametersModel(
+        latent_representation_dim=config["latent_representation_dim"],
+        l1=config["l1"],
+        l2=config["l2"])
+
+    model = GlioNet(unet_model, latent_param_model)
+
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+
     return model, optimizer
 
 
@@ -190,15 +146,15 @@ def train_model(config):
             optimizer.zero_grad()
             total_loss.backward()
 
-            for name, param in model.named_parameters():
-                print(f"\n{name} - Shape: {param.shape}")
-                print("Weights:")
-                print(param.data)  # Weights or parameters
-                if param.grad is not None:
-                    print("Gradients:")
-                    print(param.grad)  # Gradients
-                else:
-                    print("No gradients for this parameter.")
+            # for name, param in model.named_parameters():
+            #     print(f"\n{name} - Shape: {param.shape}")
+            #     print("Weights:")
+            #     print(param.data)  # Weights or parameters
+            #     if param.grad is not None:
+            #         print("Gradients:")
+            #         print(param.grad)  # Gradients
+            #     else:
+            #         print("No gradients for this parameter.")
 
             optimizer.step()
 

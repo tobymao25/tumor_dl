@@ -321,10 +321,10 @@ class UNet3D(nn.Module):
         return x
 
 class GlioNet(nn.Module):
-    def __init__(self, encoder, decoder, latent_param_model):
+    def __init__(self, Unet, latent_param_model):
         super(GlioNet, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
+        self.encoder = Unet.encoder
+        self.decoder = Unet.decoder
         self.latent_param_model = latent_param_model
 
     def forward(self, x):

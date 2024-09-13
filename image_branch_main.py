@@ -9,14 +9,16 @@ if __name__ =='__main__':
     'input_shape': (2, 128, 128, 128), 
     'network_depth': 4, # 2, 4, 6, 8
     'no_convolutions': 3, #3-6
-    'conv_filter_no_init': 32, 
+    'conv_filter_no_init': 40, 
     'conv_kernel_size': 3, 
     'latent_representation_dim': 1024, #512
     'dropout_value': 0.1, 
     'use_batch_normalization': True, 
     'activation': "leakyrelu", 
-    "lr": 1e-4, 
-    "epochs": 100
+    "lr": 1e-5, 
+    "epochs": 100, 
+    "l1": 0.001, 
+    "l2": 0.001
     }
 
     print(config)
