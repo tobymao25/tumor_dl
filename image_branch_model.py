@@ -329,7 +329,10 @@ class GlioNet(nn.Module):
 
     def forward(self, x):
         latent_representation = self.encoder(x)
-        reconstruction = self.decoder(latent_representation)
+        skip_connections = list(self.encoder.skip_connections) 
+        for idx, i in enumerate(skip_connections):
+            print(f'this is {idx} layer and its skip connection is {i.shape}')
+        reconstruction = self.decoder(latent_representation, skip_connections)
         print("this is the latent representation", latent_representation)
         latent_params = self.latent_param_model(latent_representation)
         return reconstruction, latent_params
