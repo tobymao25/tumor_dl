@@ -22,16 +22,12 @@ def model_fn(config):
         conv_kernel_size=config["conv_kernel_size"],
         latent_representation_dim=config["latent_representation_dim"],
         output_channels=1, # new
-        l1=config["l1"],
-        l2=config["l2"],
         dropout_value=config["dropout_value"],
         use_batch_normalization=config["use_batch_normalization"],
         activation=config["activation"])
 
     latent_param_model = LatentParametersModel(
-        latent_representation_dim=config["latent_representation_dim"],
-        l1=config["l1"],
-        l2=config["l2"])
+        latent_representation_dim=config["latent_representation_dim"])
 
     model = GlioNet(unet_model, latent_param_model)
 
@@ -93,7 +89,7 @@ def train_model(config):
     # T.Normalize(mean=[0.0], std=[1.0]) ])
 
     dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

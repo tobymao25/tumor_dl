@@ -117,7 +117,7 @@ class GBMdataset(Dataset):
         t2 = self._normalize_image(t2)
         
         # Stack the images and segmentation into a single tensor
-        image = np.stack([t1, seg], axis=0)
+        image = np.stack([t1ce, seg], axis=0)
         image = torch.tensor(image, dtype=torch.float32).squeeze(1)
         # Print the size of the image after resampling, resizing, and normalization
         #print(f"Image shape after resampling, resizing, and normalization: {image.shape}")
