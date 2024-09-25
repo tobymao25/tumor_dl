@@ -89,7 +89,7 @@ def train_model(config):
     # T.Normalize(mean=[0.0], std=[1.0]) ])
 
     dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

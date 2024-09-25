@@ -6,17 +6,17 @@ from image_branch_train import train_model, run_hyperparameter_search
 if __name__ =='__main__':
     
     config = {
-    'input_shape': (2, 128, 128, 128), 
+    'input_shape': (5, 128, 128, 128), 
     'network_depth': 4, # 2, 4, 6, 8
     'no_convolutions': 3, #3-6
-    'conv_filter_no_init': 24, 
+    'conv_filter_no_init': 12, 
     'conv_kernel_size': 3, 
-    'latent_representation_dim': 1024, #512
+    'latent_representation_dim': 256, #512
     'dropout_value': 0.1, 
     'use_batch_normalization': True, 
     'activation': "leakyrelu", 
-    "lr": 1e-6, 
-    "epochs": 50
+    "lr": 1e-5, 
+    "epochs": 300
     }
 
     print(config)
@@ -43,15 +43,27 @@ if __name__ =='__main__':
     # run_hyperparameter_search(search_space=search_space, num_samples=10)
 
 
-    # --- for plotting reconstruction
+    #--- for plotting reconstruction
     # import torch
     # import matplotlib.pyplot as plt
-    # recon = torch.load('/home/ltang35/tumor_dl/reconstruction_tensor_epoch33_gaussian_v1_fin.pt')
+    # input1 =  torch.load('/home/ltang35/tumor_dl/TrainingDataset/out/inputs_tensor_epoch40.pt')
+    # recon = torch.load('/home/ltang35/tumor_dl/TrainingDataset/out/reconstruction_tensor_epoch40.pt')
 
     # # Step 2: Convert tensor to NumPy array
-    # recon = recon.cpu().detach().numpy()[0, 0, :, :, 100]
+    # input1 = input1.cpu().detach().numpy()
+    # print(input1.shape)
+    # input1 = input1[0, 0, :, :, 75]
+
+    # # Step 2: Convert tensor to NumPy array
+    # recon = recon.cpu().detach().numpy()
+    # print(recon.shape)
+    # recon = recon[0, 0, :, :, 75]
 
     # # Step 3: Plot the data using matplotlib
     # plt.figure(figsize=(10, 6))
+    # plt.imshow(input1, cmap="gray")
+    # plt.savefig("/home/ltang35/tumor_dl/plot_input.png")
+
+    # plt.figure(figsize=(10, 6))
     # plt.imshow(recon, cmap="gray")
-    # plt.savefig("/home/ltang35/tumor_dl/recon.png")
+    # plt.savefig("/home/ltang35/tumor_dl/plot_recon.png")

@@ -20,7 +20,7 @@ def downsample_fn(depth):
 class encoder(nn.Module):
     def __init__(self, input_shape, network_depth, no_convolutions, conv_filter_no_init, 
                  conv_kernel_size, latent_representation_dim, l1, l2, dropout_value, 
-                 use_batch_normalization, activation, gaussian_noise_factor=0.3):
+                 use_batch_normalization, activation, gaussian_noise_factor=0.05):
         super(encoder, self).__init__()
         self.input_shape = input_shape
         self.network_depth = network_depth
