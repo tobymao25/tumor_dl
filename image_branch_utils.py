@@ -9,14 +9,6 @@ import pandas as pd
 
 class GBMdataset(Dataset):
     def __init__(self, image_dir, csv_path, target_dimensions=(128, 128, 128), target_spacing=(1, 1, 1), transform=None):
-        """
-        Args:
-            image_dir (str): Directory with all the images.
-            csv_path (str): Path to the CSV file containing patient metadata.
-            target_dimensions (tuple): Desired output image dimensions (e.g., 128x128x128).
-            target_spacing (tuple): Target voxel spacing for resampling (e.g., 1x1x1 mm).
-            transform (callable, optional): Optional transform to be applied on a sample.
-        """
         self.image_dir = image_dir
         self.transform = transform
         self.patient_data = self._load_patient_data(csv_path)
@@ -35,56 +27,33 @@ class GBMdataset(Dataset):
         return patient_data
     
     def __len__(self):
-        return len(self.patient_ids)
+        # Each image will have 3 versions: original, horizontally flipped, vertically flipped
+        return len(self.patient_ids) * 3
     
     def _resample_image(self, image_path):
-        """Resample the image to the target voxel spacing using torchio."""
         image = tio.ScalarImage(image_path)
         resample_transform = tio.transforms.Resample(self.target_spacing)
         resampled_image = resample_transform(image)
         return resampled_image
     
     def _resize_image(self, image):
-        """Resize the image to the target dimensions (e.g., 128x128x128)."""
         resize_transform = tio.transforms.Resize(self.target_dimensions)
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
-    
-    """
+
     def _standardize_image(self, image):
-        standardized_image = np.zeros_like(image)  
-        for i in range(image.shape[2]):  
-            slice_2d = image[:, :, i]  
-            mean_val = np.mean(slice_2d)
-            std_val = np.std(slice_2d)
-            if std_val > 0:
-                standardized_image[:, :, i] = (slice_2d - mean_val) / std_val
-            else:
-                standardized_image[:, :, i] = slice_2d - mean_val
-        
+        mean = np.mean(image)
+        std = np.std(image)
+        standardized_image = (image - mean) / (std + 1e-5)
         return standardized_image
-    """
-
-    def _normalize_image(self, image):
-        """Normalize each 2D slice along the depth of the 3D image to [0, 1]."""
-        normalized_image = np.zeros_like(image)  # Create an array to hold the normalized image
-        for i in range(image.shape[2]):  # Loop through each slice along the third axis (depth)
-            slice_2d = image[:, :, i]  # Get the 2D slice
-            min_val = np.min(slice_2d)
-            max_val = np.max(slice_2d)
-            
-            # Normalize the slice to [0, 1], avoiding division by zero
-            if max_val > min_val:
-                normalized_image[:, :, i] = (slice_2d - min_val) / (max_val - min_val)
-            else:
-                normalized_image[:, :, i] = slice_2d  # If all values are the same, keep the original slice
-        
-        return normalized_image
-
 
     def __getitem__(self, idx):
+        # Get the base patient index (before augmentation) and mod_idx to determine augmentation
+        patient_idx = idx // 3  # Original patient index
+        mod_idx = idx % 3       # Determines which version (original, horizontal, vertical)
+
         # Get the patient ID
-        patient_id = self.patient_ids[idx]
+        patient_id = self.patient_ids[patient_idx]
 
         # Construct the file paths for the MRI images and segmentation
         t1_path = os.path.join(self.image_dir, f"{patient_id}_t1.nii")
@@ -107,32 +76,30 @@ class GBMdataset(Dataset):
         t2 = self._resize_image(t2)
         seg = self._resize_image(seg)
 
-        # Print the shape of the image after resampling and resizing
-        #print(f"Image shape after resampling and resizing: {t1.shape}")
-        
-        # Normalize the images (for each modality)
-        t1 = self._normalize_image(t1)
-        t1ce = self._normalize_image(t1ce)
-        flair = self._normalize_image(flair)
-        t2 = self._normalize_image(t2)
+        # Standardize the images
+        t1 = self._standardize_image(t1)
+        t1ce = self._standardize_image(t1ce)
+        flair = self._standardize_image(flair)
+        t2 = self._standardize_image(t2)
         
         # Stack the images and segmentation into a single tensor
-        image = np.stack([t1ce, seg], axis=0)
-        image = torch.tensor(image, dtype=torch.float32).squeeze(1)
-        # Print the size of the image after resampling, resizing, and normalization
-        #print(f"Image shape after resampling, resizing, and normalization: {image.shape}")
+        image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
+
+        # Apply horizontal or vertical flip based on mod_idx
+        if mod_idx == 1:
+            # Horizontally flip the image and make a copy
+            image = np.flip(image, axis=2).copy()  # Flip along the x-axis
+        elif mod_idx == 2:
+            # Vertically flip the image and make a copy
+            image = np.flip(image, axis=1).copy()  # Flip along the y-axis
+        
+        # Convert to torch tensor
+        image = torch.tensor(image, dtype=torch.float32)
         
         # Get the survival time for this patient
         survival_time = self.patient_data[patient_id]['Survival']
-        
-        # Apply transformations if any
-        if self.transform:
-            image = self.transform(image)
-        
-        # Convert image and survival time to torch tensors
-        image = torch.tensor(image, dtype=torch.float32)
         survival_time = torch.tensor(survival_time, dtype=torch.float32)
-        
+
         return image, survival_time
 
 #this is the modified Gaussian noise, could try to not use it or use it since it is correct now. 
