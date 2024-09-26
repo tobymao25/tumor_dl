@@ -46,6 +46,13 @@ class GBMdataset(Dataset):
         std = np.std(image)
         standardized_image = (image - mean) / (std + 1e-5)
         return standardized_image
+    
+    def _normalize_image(self, image):
+        perc_9999_val = np.percentile(image, 99.99)
+        min_val = np.min(image)
+        normalized_image = (image - min_val) / (perc_9999_val - min_val)
+        normalized_image = np.clip(normalized_image, a_max = 1)
+        return normalized_image
 
     def __getitem__(self, idx):
         # Get the base patient index (before augmentation) and mod_idx to determine augmentation
@@ -81,7 +88,10 @@ class GBMdataset(Dataset):
         t1ce = self._standardize_image(t1ce)
         flair = self._standardize_image(flair)
         t2 = self._standardize_image(t2)
-        
+
+        # Normalize segmentation 
+        #seg = (seg - np.min(seg)) / (np.max(seg) - np.min(seg))
+
         # Stack the images and segmentation into a single tensor
         image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
 
