@@ -32,12 +32,12 @@ class GBMdataset(Dataset):
     
     def _resample_image(self, image_path):
         image = tio.ScalarImage(image_path)
-        resample_transform = tio.transforms.Resample(self.target_spacing)
+        resample_transform = tio.transforms.Resample(self.target_spacing, image_interpolation='nearest')
         resampled_image = resample_transform(image)
         return resampled_image
     
     def _resize_image(self, image):
-        resize_transform = tio.transforms.Resize(self.target_dimensions)
+        resize_transform = tio.transforms.Resize(self.target_dimensions, image_interpolation='nearest')
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
 
