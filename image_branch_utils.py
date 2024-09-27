@@ -51,7 +51,7 @@ class GBMdataset(Dataset):
         perc_9999_val = np.percentile(image, 99.99)
         min_val = np.min(image)
         normalized_image = (image - min_val) / (perc_9999_val - min_val)
-        normalized_image = np.clip(normalized_image, a_max = 1)
+        normalized_image = np.clip(normalized_image, a_min = 0, a_max = 1)
         return normalized_image
 
     def __getitem__(self, idx):
@@ -84,13 +84,13 @@ class GBMdataset(Dataset):
         seg = self._resize_image(seg)
 
         # Standardize the images
-        t1 = self._standardize_image(t1)
-        t1ce = self._standardize_image(t1ce)
-        flair = self._standardize_image(flair)
-        t2 = self._standardize_image(t2)
+        t1 = self._normalize_image(t1)
+        t1ce = self._normalize_image(t1ce)
+        flair = self._normalize_image(flair)
+        t2 = self._normalize_image(t2)
 
         # Normalize segmentation 
-        #seg = (seg - np.min(seg)) / (np.max(seg) - np.min(seg))
+        seg = (seg - np.min(seg)) / (np.max(seg) - np.min(seg))
 
         # Stack the images and segmentation into a single tensor
         image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
@@ -123,7 +123,7 @@ class GaussianNoise(nn.Module):
             std = torch.std(input_tensor)
             noise = torch.randn_like(input_tensor) * std * self.noise_factor
             # if using normalizaiton, uncomment this line to make sure no negative noise is added to range [0-1]
-            # noise = torch.abs(noise) 
+            noise = torch.abs(noise) 
             noisy_tensor = input_tensor + noise  
             return noisy_tensor
         return input_tensor
