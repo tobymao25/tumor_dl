@@ -130,7 +130,7 @@ def train_model(config):
             reconstruction, latent_params = model(inputs)
 
             # Save tensors and reconstructions every 10 epochs
-            if epoch % 10 == 0 & i == 0:
+            if epoch % 10 == 0 and i == 0:
                 torch.save(inputs,  f'/home/ltang35/tumor_dl/TrainingDataset/out/inputs_tensor_epoch{epoch}.pt')
                 torch.save(reconstruction, f'/home/ltang35/tumor_dl/TrainingDataset/out/reconstruction_tensor_epoch{epoch}.pt')
             

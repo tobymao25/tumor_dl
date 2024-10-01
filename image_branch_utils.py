@@ -30,14 +30,24 @@ class GBMdataset(Dataset):
         # Each image will have 3 versions: original, horizontally flipped, vertically flipped
         return len(self.patient_ids) * 3
     
-    def _resample_image(self, image_path):
+    def _resample_image(self, image_path, dtype):
         image = tio.ScalarImage(image_path)
-        resample_transform = tio.transforms.Resample(self.target_spacing, image_interpolation='nearest')
+        if dtype == "img": 
+            resample_transform = tio.transforms.Resample(self.target_spacing, image_interpolation='linear')
+        elif dtype == "seg": 
+            resample_transform = tio.transforms.Resample(self.target_spacing, image_interpolation='nearest')
+        else: 
+            raise TypeError("Unsupported data type")
         resampled_image = resample_transform(image)
         return resampled_image
     
-    def _resize_image(self, image):
-        resize_transform = tio.transforms.Resize(self.target_dimensions, image_interpolation='nearest')
+    def _resize_image(self, image, dtype):
+        if dtype == "img": 
+            resize_transform = tio.transforms.Resize(self.target_dimensions, image_interpolation='linear')
+        elif dtype == "seg": 
+            resize_transform = tio.transforms.Resize(self.target_dimensions, image_interpolation='nearest')
+        else: 
+            raise TypeError("Unsupported data type")
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
 
@@ -50,7 +60,7 @@ class GBMdataset(Dataset):
     def _normalize_image(self, image):
         perc_9999_val = np.percentile(image, 99.99)
         min_val = np.min(image)
-        normalized_image = (image - min_val) / (perc_9999_val - min_val)
+        normalized_image = (image - min_val) / (perc_9999_val - min_val + 1e-5)
         normalized_image = np.clip(normalized_image, a_min = 0, a_max = 1)
         return normalized_image
 
@@ -70,18 +80,18 @@ class GBMdataset(Dataset):
         seg_path = os.path.join(self.image_dir, f"{patient_id}_seg.nii")
         
         # Load and resample the images
-        t1 = self._resample_image(t1_path)
-        t1ce = self._resample_image(t1ce_path)
-        flair = self._resample_image(flair_path)
-        t2 = self._resample_image(t2_path)
-        seg = self._resample_image(seg_path)
+        t1 = self._resample_image(t1_path, "img")
+        t1ce = self._resample_image(t1ce_path, "img")
+        flair = self._resample_image(flair_path, "img")
+        t2 = self._resample_image(t2_path, "img")
+        seg = self._resample_image(seg_path, "seg")
 
         # Resize the images to target dimensions (e.g., 128x128x128)
-        t1 = self._resize_image(t1)
-        t1ce = self._resize_image(t1ce)
-        flair = self._resize_image(flair)
-        t2 = self._resize_image(t2)
-        seg = self._resize_image(seg)
+        t1 = self._resize_image(t1, "img")
+        t1ce = self._resize_image(t1ce, "img")
+        flair = self._resize_image(flair, "img")
+        t2 = self._resize_image(t2, "img")
+        seg = self._resize_image(seg, "seg")
 
         # Standardize the images
         t1 = self._normalize_image(t1)
@@ -90,7 +100,10 @@ class GBMdataset(Dataset):
         t2 = self._normalize_image(t2)
 
         # Normalize segmentation 
-        seg = (seg - np.min(seg)) / (np.max(seg) - np.min(seg))
+        seg_min = np.min(seg)
+        seg_max = np.max(seg)
+        if seg_max != seg_min:
+            seg = (seg - seg_min) / (seg_max - seg_min)
 
         # Stack the images and segmentation into a single tensor
         image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
