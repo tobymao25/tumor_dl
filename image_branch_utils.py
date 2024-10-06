@@ -114,7 +114,7 @@ class GBMdataset(Dataset):
             image = np.flip(image, axis=2).copy()  # Flip along the x-axis
         elif mod_idx == 2:
             # Vertically flip the image and make a copy
-            image = np.flip(image, axis=1).copy()  # Flip along the y-axis
+            image = np.flip(image, axis=3).copy()  # Flip along the y-axis
         
         # Convert to torch tensor
         image = torch.tensor(image, dtype=torch.float32)
