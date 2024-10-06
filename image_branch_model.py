@@ -174,7 +174,7 @@ class Decoder3D(nn.Module):
         x = self.final_activation(x)
         return x
 
-
+"""
 class LatentParametersModel(nn.Module):
     def __init__(self, latent_representation_dim, l1=0.0, l2=0.0):
         super(LatentParametersModel, self).__init__()
@@ -190,7 +190,25 @@ class LatentParametersModel(nn.Module):
     def forward(self, x):
         mu_sigma = self.mu_layer(x)
         #mu_sigma = loglogistic_activation(mu_sigma)
-        return mu_sigma
+        return mu_sigma"""
+
+class LatentParametersModel(nn.Module):
+    def __init__(self, latent_representation_dim):
+       super(LatentParametersModel, self).__init__()
+       # Define the fully connected layers for feature extraction
+       self.fc1 = nn.Linear(latent_representation_dim, 512)
+       self.fc2 = nn.Linear(512, 256)
+       self.fc3 = nn.Linear(256, 128)
+       self.fc_mu = nn.Linear(128, 1)
+       self.relu = nn.ReLU()
+       
+    def forward(self, x):
+       x = self.relu(self.fc1(x))
+       x = self.relu(self.fc2(x))
+       x = self.relu(self.fc3(x))
+       mu = self.fc_mu(x)
+      
+       return mu
 
 
 def reconstruction_loss(y_true, y_pred):
