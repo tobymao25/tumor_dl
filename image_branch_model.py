@@ -200,12 +200,11 @@ class LatentParametersModel(nn.Module):
        self.fc2 = nn.Linear(512, 256)
        self.fc3 = nn.Linear(256, 128)
        self.fc_mu = nn.Linear(128, 1)
-       self.relu = nn.ReLU()
        
     def forward(self, x):
-       x = self.relu(self.fc1(x))
-       x = self.relu(self.fc2(x))
-       x = self.relu(self.fc3(x))
+       x = self.fc1(x)
+       x = self.fc2(x)
+       x = self.fc3(x)
        mu = self.fc_mu(x)
       
        return mu
@@ -253,6 +252,7 @@ def survival_loss(mu, x):
     # calculate MSE for evaluating model
     MSE_loss = nn.MSELoss(reduction='mean')
     MSE = MSE_loss(mu, x)
+    print("this is the MSE", MSE)
 
     return MSE
 
@@ -354,6 +354,7 @@ class GlioNet(nn.Module):
             print(f'this is {idx} layer and its skip connection is {i.shape}')
         reconstruction = self.decoder(latent_representation, skip_connections)
         print("this is the latent representation", latent_representation)
+        print("this is the shape of the latent representation:", latent_representation.shape)
         latent_params = self.latent_param_model(latent_representation)
         return reconstruction, latent_params
 

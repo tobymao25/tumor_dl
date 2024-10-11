@@ -15,7 +15,7 @@ if __name__ =='__main__':
     'dropout_value': 0.05, 
     'use_batch_normalization': True, 
     'activation': "leakyrelu", 
-    "lr": 1e-4, 
+    "lr": 1e-5, 
     "epochs": 3000
     }
 
