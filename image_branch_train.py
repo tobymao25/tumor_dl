@@ -89,7 +89,7 @@ def train_model(config):
     # T.Normalize(mean=[0.0], std=[1.0]) ])
 
     dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=True, num_workers=4)
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -118,12 +118,9 @@ def train_model(config):
             # print("Model parameters:")
             # for param in model.parameters():
             #     print(param)
-            print("inputs range")
-            print("max", inputs.max())
-            print("min", inputs.min())
             # process inputs data
             inputs = inputs.to(device)
-            inputs = inputs.squeeze(2) #no need since changed the dataloader
+            inputs = inputs.squeeze(2) # remove 3rd dimension [n, 5, 1, 128, 128, 128]
             survival_times = survival_times.to(device)
             delta = torch.ones_like(survival_times).to(device)
             
