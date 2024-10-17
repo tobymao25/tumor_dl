@@ -38,7 +38,6 @@ def model_fn(config):
 
 def compute_combined_loss(reconstruction, target, latent_params, x, 
                           reconstruction_loss_fn, survival_loss_fn):
-    print("here are mu:", latent_params)
     mu = latent_params
     #plot_survival_curve(mu.detach().cpu()[0])
     reconstruction_loss = reconstruction_loss_fn(target, reconstruction)

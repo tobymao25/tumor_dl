@@ -37,12 +37,12 @@ class encoder(nn.Module):
         self.gaussian_noise_factor = gaussian_noise_factor
         self.skip_connections = []
 
-        """
         # Gaussian noise layer
         if gaussian_noise_factor:
+            print("Noise added with noise factor of", gaussian_noise_factor)
             self.noise_layer = GaussianNoise()
         else:
-            self.noise_layer = None"""
+            self.noise_layer = None
 
         # Convolutional layers
         in_channels = self.input_shape[0]
@@ -84,9 +84,8 @@ class encoder(nn.Module):
             self.activation_fn = nn.ReLU(inplace=True)
             
     def _forward_conv_layers(self, x):
-        """
         if self.noise_layer:
-            x = self.noise_layer(x)"""
+            x = self.noise_layer(x)
         
         skip_connections = []  
 
