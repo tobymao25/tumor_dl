@@ -33,7 +33,7 @@ def model_fn(config):
 
     model = GlioNet(unet_model, latent_param_model)
 
-    optimizer = optim.Adam(model.parameters(), lr=config["lr"])
+    optimizer = optim.Adam(model.parameters(), lr=config["lr"], weight_decay=0.01) # weight decay added
 
     return model, optimizer
 
@@ -64,6 +64,7 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses, valid_epoch_losses):
         
         plt.xlabel('Epochs')
         plt.ylabel(key)
+        plt.legend()
 
         # Get the current timestamp
         timestamp = datetime.now().strftime('%Y%m%d')
