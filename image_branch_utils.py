@@ -106,7 +106,7 @@ class GBMdataset(Dataset):
             seg = (seg - seg_min) / (seg_max - seg_min)
 
         # Stack the images and segmentation into a single tensor
-        image = np.stack([t1, t1ce, flair, t2], axis=0)
+        image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
 
         # Apply horizontal or vertical flip based on mod_idx
         if mod_idx == 1:

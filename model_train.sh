@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=model_train_GBM
 #SBATCH --time=96:00:00
-#SBATCH --nodelist=mrphpcg011
+#SBATCH --nodelist=mrphpcg012
 #SBATCH --partition=gpuq-a100
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
 #SBATCH --mem=36G
 

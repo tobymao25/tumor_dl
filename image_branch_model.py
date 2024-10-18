@@ -309,7 +309,7 @@ class UNet3D(nn.Module):
         
         # Calculate the shape of the feature map at the end of the encoder
         conv_shape = self.encoder.feature_map_size
-        print(f'this is conv shape: {conv_shape}')
+        #print(f'this is conv shape: {conv_shape}')
         # Decoder
         self.decoder = Decoder3D(
             conv_shape=conv_shape[1:],  # Remove the batch dimension
@@ -330,8 +330,8 @@ class UNet3D(nn.Module):
         # Encoder forward pass
         x = self.encoder(x)
         skip_connections = list(self.encoder.skip_connections) 
-        for idx, i in enumerate(skip_connections):
-            print(f'this is {idx} layer and its skip connection is {i.shape}')
+        # for idx, i in enumerate(skip_connections):
+        #     print(f'this is {idx} layer and its skip connection is {i.shape}')
         # Decoder forward pass with skip connections
         x = self.decoder(x, skip_connections)
         
@@ -347,11 +347,11 @@ class GlioNet(nn.Module):
     def forward(self, x):
         latent_representation = self.encoder(x)
         skip_connections = list(self.encoder.skip_connections) 
-        for idx, i in enumerate(skip_connections):
-            print(f'this is {idx} layer and its skip connection is {i.shape}')
+        # for idx, i in enumerate(skip_connections):
+        #     print(f'this is {idx} layer and its skip connection is {i.shape}')
         reconstruction = self.decoder(latent_representation, skip_connections)
-        print("this is the latent representation", latent_representation)
-        print("this is the shape of the latent representation:", latent_representation.shape)
+        #print("this is the latent representation", latent_representation)
+        #print("this is the shape of the latent representation:", latent_representation.shape)
         latent_params = self.latent_param_model(latent_representation)
         return reconstruction, latent_params
 

@@ -1,10 +1,12 @@
 import os
+import pandas as pd
 import torch
 import torch.optim as optim
 from ray import train
 from ray import tune
 from ray.tune.schedulers import ASHAScheduler
 from torch.utils.data import DataLoader
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from datetime import datetime
 from image_branch_utils import GBMdataset
@@ -46,7 +48,7 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
     return total_loss, reconstruction_loss.mean(), MSE.mean()
 
 
-def plot_loss_curves(loss_plot_out_dir, epoch_losses):
+def plot_loss_curves(loss_plot_out_dir, epoch_losses, stage):
 
     # Report and print epoch losses
     for key in epoch_losses:  
@@ -60,7 +62,11 @@ def plot_loss_curves(loss_plot_out_dir, epoch_losses):
 
         # Get the current timestamp
         timestamp = datetime.now().strftime('%Y%m%d')
-        plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}.png"))
+        # Save images
+        if stage == "train": 
+            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}_training.png"))
+        elif stage == "valid": 
+            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}_validation.png"))
 
 """
 def plot_survival_curve(mu, sigma):
@@ -83,12 +89,23 @@ def train_model(config):
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
     csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
     loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
+    train_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_train.csv"
+    valid_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_test.csv"
     # transform = T.Compose([
     # T.ToTensor(),  # Convert to tensor
     # T.Normalize(mean=[0.0], std=[1.0]) ])
 
-    dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)#, transform=transform)
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
+    # train valid split
+    all_patient_data_df = pd.read_csv(csv_path)
+    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, random_state=42)
+    train_df.to_csv(train_csv_path, index=False)
+    valid_df.to_csv(valid_csv_path, index=False)
+
+    # setup training and validation datasets
+    train_dataset = GBMdataset(image_dir=image_dir, csv_path=train_csv_path)#, transform=transform)
+    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
+    valid_dataset = GBMdataset(image_dir=image_dir, csv_path=valid_csv_path)#, transform=transform)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=4, shuffle=True, num_workers=4)
 
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -105,15 +122,16 @@ def train_model(config):
     else:
         print("Using a single GPU")
 
-    epoch_losses = {"loss": [], "MSE": [], "rec_loss": []}
     epochs = config["epochs"]
+    epoch_losses = {"loss": [], "MSE": [], "rec_loss": []}
+    epoch_validation_losses = {"loss": [], "MSE": [], "rec_loss": []}
 
     for epoch in range(epochs):
         print(f"Current epoch: {epoch+1}")
         running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0}
         model.train()
-        for i, (inputs, survival_times) in enumerate(dataloader):
-            print("batch", i, "out of", len(dataloader))
+        for i, (inputs, survival_times) in enumerate(train_dataloader):
+            print("batch", i, "out of", len(train_dataloader))
             # print("Model parameters:")
             # for param in model.parameters():
             #     print(param)
@@ -125,8 +143,8 @@ def train_model(config):
             
             reconstruction, latent_params = model(inputs)
 
-            # Save tensors and reconstructions every 10 epochs
-            if epoch % 10 == 0 and i == 0:
+            # Save tensors and reconstructions every 30 epochs
+            if epoch % 30 == 0 and i == 0:
                 torch.save(inputs,  f'/home/ltang35/tumor_dl/TrainingDataset/out/inputs_tensor_epoch{epoch}.pt')
                 torch.save(reconstruction, f'/home/ltang35/tumor_dl/TrainingDataset/out/reconstruction_tensor_epoch{epoch}.pt')
             
@@ -137,17 +155,6 @@ def train_model(config):
 
             optimizer.zero_grad()
             total_loss.backward()
-
-            # for name, param in model.named_parameters():
-            #     print(f"\n{name} - Shape: {param.shape}")
-            #     print("Weights:")
-            #     print(param.data)  # Weights or parameters
-            #     if param.grad is not None:
-            #         print("Gradients:")
-            #         print(param.grad)  # Gradients
-            #     else:
-            #         print("No gradients for this parameter.")
-
             optimizer.step()
 
             running_losses["loss"] += total_loss.item()
@@ -156,21 +163,49 @@ def train_model(config):
 
         # Report and print epoch losses
         for key in running_losses:
-            avg_loss = running_losses[key] / len(dataloader)
-            if key == "loss":
-                train.report({key: avg_loss})
+            avg_loss = running_losses[key] / len(train_dataloader)
+            # if key == "loss":
+            #     train.report({key: avg_loss})
             print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
             epoch_losses[key].append(avg_loss)
+        plot_loss_curves(loss_plot_out_dir, epoch_losses, "train") # plot loss curves after each epoch
+
+        # Save the model checkpoint every 30 epochs
+        if epoch % 30 == 0:
+            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/model_epoch_{epoch}.pt')
+
+        print(f"--Validation for epoch {epoch+1}--")
+        model.eval()
+        with torch.no_grad():
+            running_losses = {"loss": 0.0, "MSE": 0.0, "rec_loss": 0.0}
+            for i, (inputs, survival_times) in enumerate(valid_dataloader):
+                print("batch", i, "out of", len(valid_dataloader))
+                # process inputs data
+                inputs = inputs.to(device)
+                inputs = inputs.squeeze(2) # remove 3rd dimension [n, 5, 1, 128, 128, 128]
+                survival_times = survival_times.to(device)
+                delta = torch.ones_like(survival_times).to(device)
+            
+                pred_reconstruction, pred_latent_params = model(inputs)
+                valid_total_loss, valid_rec_loss, valid_MSE = compute_combined_loss(
+                    pred_reconstruction, inputs, pred_latent_params, survival_times,
+                    reconstruction_loss, survival_loss
+                )
+
+                running_losses["loss"] += valid_total_loss.item()
+                running_losses["MSE"] += valid_MSE.item()
+                running_losses["rec_loss"] += valid_rec_loss.item()
+
+            # Report and print epoch losses
+            for key in running_losses:
+                avg_loss = running_losses[key] / len(valid_dataloader)
+                print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
+                epoch_validation_losses[key].append(avg_loss)
+            plot_loss_curves(loss_plot_out_dir, epoch_validation_losses, "valid") # plot loss curves after each epoch
+        print(f"--Validation finished for epoch {epoch+1}--")
 
         # Clear GPU cache
         torch.cuda.empty_cache()
-
-        # Save the model checkpoint every 10 epochs
-        if epoch % 10 == 0:
-            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/model_epoch_{epoch}.pt')
-
-        # Plot loss curves after each epoch
-        plot_loss_curves(loss_plot_out_dir, epoch_losses)
 
     print("Training Finished!")
 
