@@ -101,7 +101,7 @@ class encoder(nn.Module):
         x = self._forward_conv_layers(x)
         x = self.flatten(x)
         x = self.fc(x)
-        print(f'this is the shape of fully connected layer: {x.shape}')
+        #print(f'this is the shape of fully connected layer: {x.shape}')
         x = self.activation_fn(x)
         return x
 
@@ -201,10 +201,11 @@ class LatentParametersModel(nn.Module):
        self.fc_mu = nn.Linear(128, 1)
        
     def forward(self, x):
-       x = self.fc1(x)
-       x = self.fc2(x)
-       x = self.fc3(x)
-       mu = self.fc_mu(x)
+       x = torch.relu(self.fc1(x))
+       x = torch.relu(self.fc2(x))
+       x = torch.relu(self.fc3(x))
+       # activation function to avoid negative predictions
+       mu = nn.functional.softplus(self.fc_mu(x))
       
        return mu
 

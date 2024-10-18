@@ -48,26 +48,28 @@ def compute_combined_loss(reconstruction, target, latent_params, x,
     return total_loss, reconstruction_loss.mean(), MSE.mean()
 
 
-def plot_loss_curves(loss_plot_out_dir, epoch_losses, stage):
+def plot_loss_curves(loss_plot_out_dir, train_epoch_losses, valid_epoch_losses):
 
     # Report and print epoch losses
-    for key in epoch_losses:  
+    for key in train_epoch_losses:  
         plt.figure(figsize=(5, 3))
+  
+        train_losses = train_epoch_losses[key]
+        train_losses = train_losses[1:] # do not plot the loss of the first epoch
+        plt.plot([x+1 for x in range(len(train_losses))], train_losses, label="train_"+key, color="blue", lw=3)
 
-        losses = epoch_losses[key]
-        losses = losses[1:] # do not plot the loss of the first epoch
-        plt.plot([x+1 for x in range(len(losses))], losses, label=key, lw=3)
+        valid_losses = valid_epoch_losses[key]
+        valid_losses = valid_losses[1:] # do not plot the loss of the first epoch
+        plt.plot([x+1 for x in range(len(valid_losses))], valid_losses, label="valid_"+key, color="red", lw=3)
+        
         plt.xlabel('Epochs')
         plt.ylabel(key)
 
         # Get the current timestamp
         timestamp = datetime.now().strftime('%Y%m%d')
         # Save images
-        if stage == "train": 
-            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}_training.png"))
-        elif stage == "valid": 
-            plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}_validation.png"))
-
+        plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}.png"))
+ 
 """
 def plot_survival_curve(mu, sigma):
     t = torch.arange(0,1731)
@@ -97,7 +99,9 @@ def train_model(config):
 
     # train valid split
     all_patient_data_df = pd.read_csv(csv_path)
-    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, random_state=42)
+    random_seed = 11
+    print("the random seed is 11")
+    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, random_state=random_seed)
     train_df.to_csv(train_csv_path, index=False)
     valid_df.to_csv(valid_csv_path, index=False)
 
@@ -168,7 +172,6 @@ def train_model(config):
             #     train.report({key: avg_loss})
             print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
             epoch_losses[key].append(avg_loss)
-        plot_loss_curves(loss_plot_out_dir, epoch_losses, "train") # plot loss curves after each epoch
 
         # Save the model checkpoint every 30 epochs
         if epoch % 30 == 0:
@@ -201,8 +204,9 @@ def train_model(config):
                 avg_loss = running_losses[key] / len(valid_dataloader)
                 print(f"Epoch {epoch+1}/{epochs}, {key}: {avg_loss:.4f}")
                 epoch_validation_losses[key].append(avg_loss)
-            plot_loss_curves(loss_plot_out_dir, epoch_validation_losses, "valid") # plot loss curves after each epoch
         print(f"--Validation finished for epoch {epoch+1}--")
+    
+        plot_loss_curves(loss_plot_out_dir, epoch_losses, epoch_validation_losses) # plot loss curves after each epoch
 
         # Clear GPU cache
         torch.cuda.empty_cache()
