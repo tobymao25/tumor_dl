@@ -10,8 +10,8 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from datetime import datetime
 from image_branch_utils import GBMdataset
-from image_branch_model import encoder, Decoder3D, LatentParametersModel, GlioNet, UNet3D
-from image_branch_model import reconstruction_loss, survival_loss
+from image_branch_unet import LatentParametersModel, GlioNet, UNet3D
+from image_branch_unet import reconstruction_loss, survival_loss
 #import torchvision.transforms as T
 
 
@@ -70,27 +70,13 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses, valid_epoch_losses):
         timestamp = datetime.now().strftime('%Y%m%d')
         # Save images
         plt.savefig(os.path.join(loss_plot_out_dir, f"{key} curve {timestamp}.png"))
- 
-"""
-def plot_survival_curve(mu, sigma):
-    t = torch.arange(0,1731)
-    S = S = 1 / (1 + torch.exp((torch.log(t) - mu) / sigma))
-    plt.figure(figsize=(10, 6))
-    plt.plot(t, S, label=f'Survival Probability (mu={mu.item()}, sigma={sigma.item()})')
-    plt.xlabel('t (Survival Time)')
-    plt.ylabel('S (Survival Probability)')
-    plt.title('Survival Probability vs. Survival Time')
-    plt.grid(True)
-    plt.legend()
-    plt.savefig("/home/ltang35/tumor_dl/TrainingDataset/out/survival_curve.png")
-"""
 
 
 def train_model(config): 
 
     # setup data
     image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
-    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
+    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_w_hopkins.csv"
     loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
     train_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_train.csv"
     valid_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_test.csv"
@@ -102,7 +88,7 @@ def train_model(config):
     all_patient_data_df = pd.read_csv(csv_path)
     random_seed = 11
     print("the random seed is 11")
-    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, random_state=random_seed)
+    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.1, random_state=random_seed)
     train_df.to_csv(train_csv_path, index=False)
     valid_df.to_csv(valid_csv_path, index=False)
 
@@ -237,4 +223,5 @@ def run_hyperparameter_search(search_space, num_samples):
     best_trial = analysis.get_best_trial(metric="loss", mode="min", scope="last")
     print(f"Best trial config: {best_trial.config}")
     print(f"Best trial final validation loss: {best_trial.last_result['loss']}")
+
 

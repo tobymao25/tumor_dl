@@ -1,26 +1,36 @@
 import logging
 import ray
 import ray.tune as tune
-from image_branch_train import train_model, run_hyperparameter_search
+#from image_branch_train_unet import train_model, run_hyperparameter_search
+from image_branch_train_resnet import train_resnet
 
 if __name__ =='__main__':
     
+    ##unet
+    # config = {
+    # 'input_shape': (4, 128, 128, 128), 
+    # 'network_depth': 4, # 2, 4, 6, 8
+    # 'no_convolutions': 3, #3-6
+    # 'conv_filter_no_init': 12, 
+    # 'conv_kernel_size': 3, 
+    # 'latent_representation_dim': 256, #512
+    # 'dropout_value': 0.1, 
+    # 'use_batch_normalization': True, 
+    # 'activation': "leakyrelu", 
+    # "lr": 1e-5, 
+    # "epochs": 3000
+    # }
+    # print(config)
+    # train_model(config=config)
+
     config = {
-    'input_shape': (5, 128, 128, 128), 
-    'network_depth': 4, # 2, 4, 6, 8
-    'no_convolutions': 3, #3-6
-    'conv_filter_no_init': 12, 
-    'conv_kernel_size': 3, 
-    'latent_representation_dim': 256, #512
-    'dropout_value': 0.3, 
-    'use_batch_normalization': True, 
-    'activation': "leakyrelu", 
+    'batch_size': 4, 
+    'depth': 50, 
     "lr": 1e-5, 
     "epochs": 3000
     }
-
     print(config)
-    train_model(config=config)
+    train_resnet(config=config)
 
     # --- for hyperparameter tuning
     # search_space = {

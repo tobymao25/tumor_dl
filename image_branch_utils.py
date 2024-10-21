@@ -21,9 +21,9 @@ class GBMdataset(Dataset):
         patient_data = {}
         for _, row in data.iterrows():
             patient_id = row['Brats17ID']
-            age = row['Age']
+            #age = row['Age']
             survival = row['Survival']
-            patient_data[patient_id] = {'Age': age, 'Survival': survival}
+            patient_data[patient_id] = {'Survival': survival} #{'Age': age, 'Survival': survival}
         return patient_data
     
     def __len__(self):

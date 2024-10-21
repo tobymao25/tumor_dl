@@ -1,12 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from datetime import datetime
-import os
-from image_branch_utils import GBMdataset
-import torch.optim as optim
-from torch.utils.data import DataLoader
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
@@ -84,61 +78,3 @@ def get_resnet_layers(depth):
     
     return layers
 
-def train_model(model, dataloader, criterion, optimizer, plot_output_dir, num_epochs=25, device='cuda'):
-    model = model.to(device)
-    loss_history = []
-    for epoch in range(num_epochs):
-        model.train()  
-        running_loss = 0.0
-        
-        for inputs, labels in dataloader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item() * inputs.size(0)
-
-        epoch_loss = running_loss / len(dataloader.dataset)
-        loss_history.append(epoch_loss)
-        print(f'Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss:.4f}')
-        plt.figure(figsize=(8, 6))
-        plt.plot(range(1, epoch+2), loss_history, label="Training Loss", marker='o')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.title('Training Loss Over Epochs')
-        plt.grid(True)
-        plt.legend()
-
-        # Save plot to the specified directory
-        plot_filename = os.path.join(plot_output_dir, f'loss_epoch_{epoch+1}.png')
-        plt.savefig(plot_filename)
-        plt.close()
-    print('Training complete')
-
-def main():
-    num_epochs = 25
-    batch_size = 4
-    learning_rate = 0.001
-    depth = 50  
-    
-    # Define dataset and dataloader (Assume GBMdataset class is implemented)
-    image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
-    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
-    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
-    train_dataset = GBMdataset(image_dir=image_dir, csv_path=csv_path)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    # Get layers based on depth
-    layers = get_resnet_layers(depth)
-    
-    # Instantiate model based on ResNet depth
-    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=5, initial_filters=64)
-    
-    # Define loss function and optimizer
-    criterion = nn.MSELoss()  # Since it's a regression task
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    
-    # Train the model
-    train_model(model, train_loader, criterion, optimizer, plot_output_dir=loss_plot_out_dir, num_epochs=num_epochs)

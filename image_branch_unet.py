@@ -201,11 +201,10 @@ class LatentParametersModel(nn.Module):
        self.fc_mu = nn.Linear(128, 1)
        
     def forward(self, x):
-       x = torch.relu(self.fc1(x))
-       x = torch.relu(self.fc2(x))
-       x = torch.relu(self.fc3(x))
-       # activation function to avoid negative predictions
-       mu = nn.functional.softplus(self.fc_mu(x))
+       x = self.fc1(x)
+       x = self.fc2(x)
+       x = self.fc3(x)
+       mu = self.fc_mu(x)
       
        return mu
 
@@ -287,6 +286,7 @@ def loglogistic_activation(mu_logsig):
     
     return new
     """
+
 class UNet3D(nn.Module):
     def __init__(self, input_shape, network_depth, no_convolutions, conv_filter_no_init, 
                  conv_kernel_size, latent_representation_dim, output_channels=1, l1=0.0, l2=0.0, 
