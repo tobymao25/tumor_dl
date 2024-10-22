@@ -27,7 +27,22 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
     plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_{timestamp}.png"))
+    plt.close()
 
+
+def plot_valid_loss_curves(loss_plot_out_dir, epoch_validated, epoch_valid_losses):
+
+    plt.figure(figsize=(5, 3))
+    plt.plot(epoch_validated, epoch_valid_losses, label="valid", color="red", lw=2)
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Get the current timestamp
+    timestamp = datetime.now().strftime('%Y%m%d')
+    # Save images
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_{timestamp}.png"))
+    plt.close()
 
 def train_resnet(config): 
 
@@ -72,6 +87,8 @@ def train_resnet(config):
 
     epochs = config["epochs"]
     epoch_losses = []
+    epoch_validated = []
+    epoch_valid_losses = []
 
     for epoch in range(epochs):
         print(f"Current epoch: {epoch+1}")
@@ -114,10 +131,8 @@ def train_resnet(config):
         # plot loss curve for training
         plot_loss_curves(loss_plot_out_dir, epoch_losses) # plot loss curves after each epoch
 
-        # Validate every 20 epoches
-        epoch_validated = []
-        epoch_valid_losses = []
-        if epoch % 3 == 0:
+        # Validate every 5 epoches
+        if epoch % 5 == 0:
             print(f"--Validation for epoch {epoch+1}--")
             model.eval()
             with torch.no_grad():
@@ -150,18 +165,7 @@ def train_resnet(config):
 
                 print("epoch_validated", epoch_validated)
                 print("epoch_valid_losses", epoch_valid_losses)
-
-                #### plotting function
-                plt.figure(figsize=(5, 3))
-                plt.plot(epoch_validated, epoch_valid_losses, label="valid", color="red", lw=2)
-                plt.xlabel('Epochs')
-                plt.ylabel('Loss')
-                plt.legend()
-
-                # Get the current timestamp
-                timestamp = datetime.now().strftime('%Y%m%d')
-                # Save images
-                plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_{timestamp}.png"))
+                plot_valid_loss_curves(loss_plot_out_dir, epoch_validated, epoch_valid_losses) # plot loss curves after each epoch
 
             print(f"--Validation finished for epoch {epoch+1}--")
         
