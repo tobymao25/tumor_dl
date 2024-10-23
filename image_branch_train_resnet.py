@@ -137,7 +137,7 @@ def train_resnet(config):
             model.eval()
             with torch.no_grad():
                 running_losses = 0.0
-                model.train()
+                #model.train()
                 for i, (inputs, survival_times) in enumerate(valid_dataloader):
                     print("batch", i, "out of", len(valid_dataloader))
                     # print("Model parameters:")
@@ -158,7 +158,7 @@ def train_resnet(config):
                     running_losses += loss.item() * inputs.size(0) # in case the last batch has fewer samples
 
                 # Report and print epoch losses
-                avg_loss = running_losses / len(train_dataloader.dataset)
+                avg_loss = running_losses / len(valid_dataloader.dataset)
                 print(f"Epoch {epoch+1}/{epochs}, loss: {avg_loss:.4f}")
                 epoch_validated.append(epoch+1)
                 epoch_valid_losses.append(avg_loss)
