@@ -73,9 +73,10 @@ def train_resnet(config):
 
     # set up model and optimizer
     layers = get_resnet_layers(config['depth'])
-    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=5, initial_filters=64)
+    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=5, initial_filters=64, 
+                    gaussian_noise_factor=0.08, dropout_value=config['dropout_value'])
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    optimizer = optim.Adam(model.parameters(), lr=config['lr'], weight_decay=0.01) # weight decay added
     criterion = nn.MSELoss(reduction='mean')
 
     # If multiple GPUs are available, wrap the model with DataParallel
@@ -125,8 +126,9 @@ def train_resnet(config):
         epoch_losses.append(avg_loss)
 
         # Save the model checkpoint every 30 epochs
+        timestamp = datetime.now().strftime('%Y%m%d')
         if epoch % 30 == 0:
-            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}.pt')
+            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_{timestamp}.pt')
 
         # plot loss curve for training
         plot_loss_curves(loss_plot_out_dir, epoch_losses) # plot loss curves after each epoch

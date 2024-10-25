@@ -3,6 +3,7 @@ import ray
 import ray.tune as tune
 #from image_branch_train_unet import train_model, run_hyperparameter_search
 from image_branch_train_resnet import train_resnet
+from image_branch_valid_resnet_temp import valid_resnet
 
 if __name__ =='__main__':
     
@@ -25,12 +26,16 @@ if __name__ =='__main__':
 
     config = {
     'batch_size': 4, 
-    'depth': 50, 
+    'depth': 34, 
     "lr": 1e-5, 
+    'dropout_value': 0.1, 
     "epochs": 3000
     }
     print(config)
     train_resnet(config=config)
+
+    ###################### For validating resnet
+    #valid_resnet()
 
     # --- for hyperparameter tuning
     # search_space = {
