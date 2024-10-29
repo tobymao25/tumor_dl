@@ -5,7 +5,7 @@ import torch.nn as nn
 import torchio as tio
 from torch.utils.data import Dataset
 import pandas as pd
-
+from tqdm import tqdm
 
 class GBMdataset(Dataset):
     def __init__(self, image_dir, csv_path, target_dimensions=(128, 128, 128), target_spacing=(1, 1, 1), transform=None):
@@ -21,15 +21,14 @@ class GBMdataset(Dataset):
         patient_data = {}
         for _, row in data.iterrows():
             patient_id = row['Brats17ID']
-            #age = row['Age']
             survival = row['Survival']
-            patient_data[patient_id] = {'Survival': survival} #{'Age': age, 'Survival': survival}
+            patient_data[patient_id] = {'Survival': survival}
         return patient_data
-    
+
     def __len__(self):
-        # Each image will have 3 versions: original, horizontally flipped, vertically flipped
-        return len(self.patient_ids) * 3
-    
+        # Each image has 4 versions: original, horizontal flip, vertical flip, and rotation
+        return len(self.patient_ids) * 4
+
     def _resample_image(self, image_path, dtype):
         image = tio.ScalarImage(image_path)
         if dtype == "img": 
@@ -40,7 +39,7 @@ class GBMdataset(Dataset):
             raise TypeError("Unsupported data type")
         resampled_image = resample_transform(image)
         return resampled_image
-    
+
     def _resize_image(self, image, dtype):
         if dtype == "img": 
             resize_transform = tio.transforms.Resize(self.target_dimensions, image_interpolation='linear')
@@ -51,33 +50,39 @@ class GBMdataset(Dataset):
         resized_image = resize_transform(image)
         return resized_image.data.numpy()
 
-    def _standardize_image(self, image):
-        mean = np.mean(image)
-        std = np.std(image)
-        standardized_image = (image - mean) / (std + 1e-5)
-        return standardized_image
-    
     def _normalize_image(self, image):
         perc_9999_val = np.percentile(image, 99.99)
         min_val = np.min(image)
         normalized_image = (image - min_val) / (perc_9999_val - min_val + 1e-5)
-        normalized_image = np.clip(normalized_image, a_min = 0, a_max = 1)
+        normalized_image = np.clip(normalized_image, a_min=0, a_max=1)
         return normalized_image
 
     def __getitem__(self, idx):
-        # Get the base patient index (before augmentation) and mod_idx to determine augmentation
-        patient_idx = idx // 3  # Original patient index
-        mod_idx = idx % 3       # Determines which version (original, horizontal, vertical)
+        # Determine the base patient index and augmentation type
+        patient_idx = idx // 4  # Base patient index
+        aug_idx = idx % 4       # 0 = original, 1 = horizontal flip, 2 = vertical flip, 3 = rotation
 
         # Get the patient ID
         patient_id = self.patient_ids[patient_idx]
 
-        # Construct the file paths for the MRI images and segmentation
-        t1_path = os.path.join(self.image_dir, f"{patient_id}_t1.nii")
-        t1ce_path = os.path.join(self.image_dir, f"{patient_id}_t1ce.nii")
-        flair_path = os.path.join(self.image_dir, f"{patient_id}_flair.nii")
-        t2_path = os.path.join(self.image_dir, f"{patient_id}_t2.nii")
-        seg_path = os.path.join(self.image_dir, f"{patient_id}_seg.nii")
+        # Define augmentation suffix based on aug_idx
+        if aug_idx == 0:
+            aug_suffix = ''  # Original image has no suffix
+        elif aug_idx == 1:
+            aug_suffix = '_hf'  # Horizontal flip
+        elif aug_idx == 2:
+            aug_suffix = '_vf'  # Vertical flip
+        elif aug_idx == 3:
+            aug_suffix = '_r'  # Rotation
+        else:
+            raise ValueError("Invalid augmentation index")
+
+        # Construct file paths with appropriate suffixes
+        t1_path = os.path.join(self.image_dir, f"{patient_id}_t1{aug_suffix}.nii")
+        t1ce_path = os.path.join(self.image_dir, f"{patient_id}_t1ce{aug_suffix}.nii")
+        flair_path = os.path.join(self.image_dir, f"{patient_id}_flair{aug_suffix}.nii")
+        t2_path = os.path.join(self.image_dir, f"{patient_id}_t2{aug_suffix}.nii")
+        seg_path = os.path.join(self.image_dir, f"{patient_id}_seg{aug_suffix}.nii")
         
         # Load and resample the images
         t1 = self._resample_image(t1_path, "img")
@@ -107,14 +112,6 @@ class GBMdataset(Dataset):
 
         # Stack the images and segmentation into a single tensor
         image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
-
-        # Apply horizontal or vertical flip based on mod_idx
-        if mod_idx == 1:
-            # Horizontally flip the image and make a copy
-            image = np.flip(image, axis=2).copy()  # Flip along the x-axis
-        elif mod_idx == 2:
-            # Vertically flip the image and make a copy
-            image = np.flip(image, axis=3).copy()  # Flip along the y-axis
         
         # Convert to torch tensor
         image = torch.tensor(image, dtype=torch.float32)
@@ -124,6 +121,7 @@ class GBMdataset(Dataset):
         survival_time = torch.tensor(survival_time, dtype=torch.float32)
 
         return image, survival_time
+
 
 # this is the modified Gaussian noise, could try to not use it or use it since it is correct now. 
 class GaussianNoise(nn.Module):
@@ -140,3 +138,33 @@ class GaussianNoise(nn.Module):
             noisy_tensor = input_tensor + noise  
             return noisy_tensor
         return input_tensor
+
+def augment_and_save(image_path, save_dir):
+    """this function reads all the images in image_path folder and apply augmentation 
+    so each original image will have one horizontally flipped, one vertically flipped,
+    and one rotated image in the training dataset
+    """
+    image = tio.ScalarImage(image_path)
+    filename = os.path.basename(image_path)
+    base_name, ext = os.path.splitext(filename)
+    augmentations = {
+        'hf': tio.transforms.Flip(axes=('LR',)),       # Horizontal flip (left-right)
+        'vf': tio.transforms.Flip(axes=('AP',)),       # Vertical flip (anterior-posterior)
+        'r': tio.transforms.RandomAffine(degrees=(10, 10, 10))  # Small random rotation
+    }
+    for aug_suffix, transform in augmentations.items():
+        augmented_image = transform(image)
+        new_filename = f"{base_name}_{aug_suffix}{ext}"
+        save_path = os.path.join(save_dir, new_filename)
+        augmented_image.save(save_path)
+        print(f"Saved: {save_path}")
+
+def save(image_dir):
+    """this is the helper function that calls the augment_and_save function that keeps track of the progress
+    """
+    for file_name in tqdm(os.listdir(image_dir)):
+        if file_name.endswith(".nii"):
+            file_path = os.path.join(image_dir, file_name)
+            augment_and_save(file_path, image_dir)
+
+    print("Augmentation complete!")
