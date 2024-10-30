@@ -26,10 +26,13 @@ if __name__ =='__main__':
 
     config = {
     'batch_size': 4, 
-    'depth': 34, 
+    'depth': 18, 
     "lr": 1e-5, 
-    'dropout_value': 0.1, 
-    "epochs": 3000
+    'dropout_value': 0.2, 
+    "epochs": 3000, 
+    "l1": 0.01,
+    "l2": 0.01, 
+    "noise_factor": 0.08
     }
     print(config)
     train_resnet(config=config)

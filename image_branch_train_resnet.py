@@ -26,7 +26,7 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_{timestamp}.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_exp2.png"))
     plt.close()
 
 
@@ -41,7 +41,7 @@ def plot_valid_loss_curves(loss_plot_out_dir, epoch_validated, epoch_valid_losse
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_{timestamp}.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_exp2.png"))
     plt.close()
 
 def train_resnet(config): 
@@ -57,7 +57,9 @@ def train_resnet(config):
     all_patient_data_df = pd.read_csv(csv_path)
     random_seed = 11
     print("the random seed is 11")
-    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.1, random_state=random_seed)
+    # perform stratified train-test split
+    all_patient_data_df['binned_outcome'] = pd.qcut(all_patient_data_df['Survival'], q=4, labels=False)
+    train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, stratify=all_patient_data_df["binned_outcome"], random_state=random_seed)
     train_df.to_csv(train_csv_path, index=False)
     valid_df.to_csv(valid_csv_path, index=False)
 
@@ -74,9 +76,11 @@ def train_resnet(config):
     # set up model and optimizer
     layers = get_resnet_layers(config['depth'])
     model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=5, initial_filters=64, 
-                    gaussian_noise_factor=0.08, dropout_value=config['dropout_value'])
+                    gaussian_noise_factor=config["noise_factor"], dropout_value=config['dropout_value'])
+    #state_dict = torch.load("/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_180_20241025.pt") #
+    #model.load_state_dict(state_dict) ### train from checkpt
     model = model.to(device)
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'], weight_decay=0.01) # weight decay added
+    optimizer = optim.Adam(model.parameters(), lr=config['lr'], weight_decay=config["l2"]) # weight decay added
     criterion = nn.MSELoss(reduction='mean')
 
     # If multiple GPUs are available, wrap the model with DataParallel
@@ -109,7 +113,10 @@ def train_resnet(config):
             outputs = outputs.squeeze() # Ensure mu and x has same dimension
             print("here are the predictions", outputs)
             print("here are the labels", survival_times)
+            l1_lambda = config["l1"] # l1 regularization
+            l1_norm = sum(p.abs().sum() for p in model.parameters()) # l1 regularization
             loss = criterion(outputs, survival_times)
+            loss = loss + l1_lambda * l1_norm # l1 regularization
             print("This is the calculated loss", loss)
 
             optimizer.zero_grad()
@@ -128,7 +135,7 @@ def train_resnet(config):
         # Save the model checkpoint every 30 epochs
         timestamp = datetime.now().strftime('%Y%m%d')
         if epoch % 30 == 0:
-            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_{timestamp}.pt')
+            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_exp2.pt')
 
         # plot loss curve for training
         plot_loss_curves(loss_plot_out_dir, epoch_losses) # plot loss curves after each epoch
