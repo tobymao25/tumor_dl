@@ -139,7 +139,8 @@ class GaussianNoise(nn.Module):
             return noisy_tensor
         return input_tensor
 
-def augment_and_save(image_path, save_dir):
+
+def augment_and_save(image_path, save_dir, dtype):
     """this function reads all the images in image_path folder and apply augmentation 
     so each original image will have one horizontally flipped, one vertically flipped,
     and one rotated image in the training dataset
@@ -147,11 +148,20 @@ def augment_and_save(image_path, save_dir):
     image = tio.ScalarImage(image_path)
     filename = os.path.basename(image_path)
     base_name, ext = os.path.splitext(filename)
-    augmentations = {
+    if dtype=="seg": 
+        augmentations = {
         'hf': tio.transforms.Flip(axes=('LR',)),       # Horizontal flip (left-right)
         'vf': tio.transforms.Flip(axes=('AP',)),       # Vertical flip (anterior-posterior)
-        'r': tio.transforms.RandomAffine(degrees=(10, 10, 10))  # Small random rotation
-    }
+        'r': tio.transforms.RandomAffine(degrees=(30, 30, 30, 30, 30, 30), image_interpolation='nearest') # Small random rotation
+        }
+    elif dtype=="img": 
+        augmentations = {
+        'hf': tio.transforms.Flip(axes=('LR',)),       # Horizontal flip (left-right)
+        'vf': tio.transforms.Flip(axes=('AP',)),       # Vertical flip (anterior-posterior)
+        'r': tio.transforms.RandomAffine(degrees=(30, 30, 30, 30, 30, 30), image_interpolation='linear') # Small random rotation
+        }
+    else: 
+        raise TypeError("Unsupported data type")
     for aug_suffix, transform in augmentations.items():
         augmented_image = transform(image)
         new_filename = f"{base_name}_{aug_suffix}{ext}"
@@ -159,12 +169,21 @@ def augment_and_save(image_path, save_dir):
         augmented_image.save(save_path)
         print(f"Saved: {save_path}")
 
+
 def save(image_dir):
     """this is the helper function that calls the augment_and_save function that keeps track of the progress
     """
     for file_name in tqdm(os.listdir(image_dir)):
         if file_name.endswith(".nii"):
             file_path = os.path.join(image_dir, file_name)
-            augment_and_save(file_path, image_dir)
-
+            if file_name.endswith("seg.nii"):
+                augment_and_save(file_path, image_dir, "seg")
+            else:
+                augment_and_save(file_path, image_dir, "img")
     print("Augmentation complete!")
+
+
+if __name__ =='__main__':
+    print("starting augmentation")
+    save("/home/ltang35/tumor_dl/TrainingDataset/images")
+    print("augmentation finished")

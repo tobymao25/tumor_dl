@@ -30,8 +30,8 @@ if __name__ =='__main__':
     "lr": 1e-5, 
     'dropout_value': 0.2, 
     "epochs": 3000, 
-    "l1": 0.01,
-    "l2": 0.01, 
+    "l1": 0.05,
+    "l2": 0.05, 
     "noise_factor": 0.08
     }
     print(config)
