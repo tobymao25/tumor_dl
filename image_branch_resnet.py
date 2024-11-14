@@ -27,16 +27,13 @@ class ResidualBlock(nn.Module):
 
 class ResNet3D(nn.Module):
     def __init__(self, block, layers, num_classes=1, in_channels=5, initial_filters=64, 
-                 gaussian_noise_factor=0.05, dropout_value=0.0):
-        
+                 gaussian_noise_factor=0.05, dropout_value=0.0, latent=True):
         super(ResNet3D, self).__init__()
         self.in_channels = initial_filters
-        dropout_value=dropout_value
         self.gaussian_noise_factor = gaussian_noise_factor
-
-        # Gaussian noise layer
+        self.latent = latent
+        
         if gaussian_noise_factor:
-            print("Noise added with noise factor of", gaussian_noise_factor)
             self.noise_layer = GaussianNoise(noise_factor=gaussian_noise_factor)
         else:
             self.noise_layer = None
@@ -51,9 +48,8 @@ class ResNet3D(nn.Module):
         self.layer4 = self._make_layer(block, initial_filters * 8, layers[3], stride=2)
         
         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
-
         self.fc = nn.Linear(initial_filters * 8, num_classes)
-
+        
         if dropout_value:
             self.dropout = nn.Dropout3d(p=dropout_value)
 
@@ -83,10 +79,86 @@ class ResNet3D(nn.Module):
         out = self.layer4(out)
         if self.dropout:
             out = self.dropout(out)
+        
         out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        out = self.fc(out)
-        return out
+        latent_features = torch.flatten(out, 1)
+
+        if self.latent:
+            return latent_features
+        else:
+            out = self.fc(latent_features)
+            return out
+        
+class ClinicalCovariateModel(nn.Module):
+    def __init__(self, input_dim, network_depth=3, no_units=128, dropout_value=0.3, use_batch_norm=True, latent_dim=64):
+        super(ClinicalCovariateModel, self).__init__()
+        
+        self.layers = nn.ModuleList()
+        self.dropout_value = dropout_value
+        self.use_batch_norm = use_batch_norm
+
+        for i in range(network_depth):
+            self.layers.append(nn.Linear(input_dim if i == 0 else no_units, no_units))
+            if use_batch_norm:
+                self.layers.append(nn.BatchNorm1d(no_units))
+        self.latent_layer = nn.Linear(no_units, latent_dim)
+        self.output_layer = nn.Linear(latent_dim, 1)
+        if dropout_value:
+            self.dropout = nn.Dropout(dropout_value)
+
+    def forward(self, x):
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                x = F.relu(layer(x))
+            elif isinstance(layer, nn.BatchNorm1d):
+                x = layer(x)
+        
+        if self.dropout_value:
+            x = self.dropout(x)
+
+        latent_features = F.relu(self.latent_layer(x))
+
+        survival_prediction = self.output_layer(latent_features)
+        
+        return latent_features, survival_prediction
+
+class SurvivalEnsembleModel(nn.Module):
+    """this model combines imaging model and cov model, apply a neural network, to make the final survival outcome
+    prediction. 
+    """
+    def __init__(self, resnet_model, covariate_model, ensemble_units=128, ensemble_depth=2, trainable=True):
+        super(SurvivalEnsembleModel, self).__init__()
+
+        self.resnet_model = resnet_model
+        self.covariate_model = covariate_model
+
+        for param in self.resnet_model.parameters():
+            param.requires_grad = trainable
+        for param in self.covariate_model.parameters():
+            param.requires_grad = trainable
+        
+        resnet_latent_dim = resnet_model.fc.in_features  
+        covariate_latent_dim = covariate_model.latent_layer.out_features 
+        self.ensemble_layers = nn.ModuleList()
+        input_dim = resnet_latent_dim + covariate_latent_dim  
+        
+        for _ in range(ensemble_depth):
+            dense_layer = nn.Linear(input_dim, ensemble_units)
+            torch.nn.init.xavier_uniform_(dense_layer.weight)
+            self.ensemble_layers.append(dense_layer)
+            input_dim = ensemble_units  
+        self.output_layer = nn.Linear(ensemble_units, 1)
+
+    def forward(self, image_data, covariate_data):
+        resnet_latent_features = self.resnet_model(image_data)
+        covariate_latent_features, _ = self.covariate_model(covariate_data)
+        combined_features = torch.cat((resnet_latent_features, covariate_latent_features), dim=1)
+        x = combined_features
+        for layer in self.ensemble_layers:
+            x = F.relu(layer(x))
+        survival_prediction = self.output_layer(x)
+        return survival_prediction
+
 
 def get_resnet_layers(depth):
     if depth == 18:
