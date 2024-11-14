@@ -86,7 +86,7 @@ class ResNet3D(nn.Module):
         if self.latent:
             return latent_features
         else:
-            out = self.fc(latent_features)
+            out = F.relu(self.fc(latent_features))
             return out
         
 class ClinicalCovariateModel(nn.Module):
@@ -118,7 +118,7 @@ class ClinicalCovariateModel(nn.Module):
 
         latent_features = F.relu(self.latent_layer(x))
 
-        survival_prediction = self.output_layer(latent_features)
+        survival_prediction = F.relu(self.output_layer(latent_features))
         
         return latent_features, survival_prediction
 
