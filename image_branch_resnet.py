@@ -90,6 +90,9 @@ class ResNet3D(nn.Module):
             return out
         
 class ClinicalCovariateModel(nn.Module):
+    """This is the clinical cov model. input_dim should be how many variables we want to include, 
+    other variables should be fine-tuned.
+    """
     def __init__(self, input_dim, network_depth=3, no_units=128, dropout_value=0.3, use_batch_norm=True, latent_dim=64):
         super(ClinicalCovariateModel, self).__init__()
         
@@ -158,7 +161,6 @@ class SurvivalEnsembleModel(nn.Module):
             x = F.relu(layer(x))
         survival_prediction = self.output_layer(x)
         return survival_prediction
-
 
 def get_resnet_layers(depth):
     if depth == 18:
