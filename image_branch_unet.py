@@ -40,7 +40,7 @@ class encoder(nn.Module):
         # Gaussian noise layer
         if gaussian_noise_factor:
             print("Noise added with noise factor of", gaussian_noise_factor)
-            self.noise_layer = GaussianNoise()
+            self.noise_layer = GaussianNoise(noise_factor=gaussian_noise_factor)
         else:
             self.noise_layer = None
 

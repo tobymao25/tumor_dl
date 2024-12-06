@@ -25,20 +25,20 @@ if __name__ =='__main__':
     # train_model(config=config)
 
     config = {
-    'batch_size': 4, 
-    'depth': 18, 
+    'batch_size': 8, 
+    'depth': 50, 
     "lr": 1e-5, 
-    'dropout_value': 0.2, 
+    'dropout_value': 0.1, 
     "epochs": 3000, 
-    "l1": 0.05,
-    "l2": 0.05, 
+    "l1": 0.01,
+    "l2": 0.01, 
     "noise_factor": 0.08
     }
     print(config)
     train_resnet(config=config)
 
     ###################### For validating resnet
-    #valid_resnet()
+    #valid_resnet(config=config)
 
     # --- for hyperparameter tuning
     # search_space = {

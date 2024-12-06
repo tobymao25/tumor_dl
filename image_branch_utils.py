@@ -78,40 +78,40 @@ class GBMdataset(Dataset):
             raise ValueError("Invalid augmentation index")
 
         # Construct file paths with appropriate suffixes
-        t1_path = os.path.join(self.image_dir, f"{patient_id}_t1{aug_suffix}.nii")
+        #t1_path = os.path.join(self.image_dir, f"{patient_id}_t1{aug_suffix}.nii")
         t1ce_path = os.path.join(self.image_dir, f"{patient_id}_t1ce{aug_suffix}.nii")
         flair_path = os.path.join(self.image_dir, f"{patient_id}_flair{aug_suffix}.nii")
         t2_path = os.path.join(self.image_dir, f"{patient_id}_t2{aug_suffix}.nii")
-        seg_path = os.path.join(self.image_dir, f"{patient_id}_seg{aug_suffix}.nii")
+        #seg_path = os.path.join(self.image_dir, f"{patient_id}_seg{aug_suffix}.nii")
         
         # Load and resample the images
-        t1 = self._resample_image(t1_path, "img")
+        #t1 = self._resample_image(t1_path, "img")
         t1ce = self._resample_image(t1ce_path, "img")
         flair = self._resample_image(flair_path, "img")
         t2 = self._resample_image(t2_path, "img")
-        seg = self._resample_image(seg_path, "seg")
+        #seg = self._resample_image(seg_path, "seg")
 
         # Resize the images to target dimensions (e.g., 128x128x128)
-        t1 = self._resize_image(t1, "img")
+        #t1 = self._resize_image(t1, "img")
         t1ce = self._resize_image(t1ce, "img")
         flair = self._resize_image(flair, "img")
         t2 = self._resize_image(t2, "img")
-        seg = self._resize_image(seg, "seg")
+        #seg = self._resize_image(seg, "seg")
 
         # Standardize the images
-        t1 = self._normalize_image(t1)
+        #t1 = self._normalize_image(t1)
         t1ce = self._normalize_image(t1ce)
         flair = self._normalize_image(flair)
         t2 = self._normalize_image(t2)
 
         # Normalize segmentation 
-        seg_min = np.min(seg)
-        seg_max = np.max(seg)
-        if seg_max != seg_min:
-            seg = (seg - seg_min) / (seg_max - seg_min)
+        # seg_min = np.min(seg)
+        # seg_max = np.max(seg)
+        # if seg_max != seg_min:
+        #     seg = (seg - seg_min) / (seg_max - seg_min)
 
         # Stack the images and segmentation into a single tensor
-        image = np.stack([t1, t1ce, flair, t2, seg], axis=0)
+        image = np.stack([t1ce, flair, t2], axis=0) #np.stack([t1, t1ce, flair, t2, seg], axis=0)
         
         # Convert to torch tensor
         image = torch.tensor(image, dtype=torch.float32)

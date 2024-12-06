@@ -26,7 +26,7 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_exp2.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_exp12.png"))
     plt.close()
 
 
@@ -41,7 +41,7 @@ def plot_valid_loss_curves(loss_plot_out_dir, epoch_validated, epoch_valid_losse
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_exp2.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_exp12.png"))
     plt.close()
 
 def train_resnet(config): 
@@ -55,8 +55,8 @@ def train_resnet(config):
 
     # train valid split
     all_patient_data_df = pd.read_csv(csv_path)
-    random_seed = 11
-    print("the random seed is 11")
+    random_seed = 22
+    print("the random seed is 22")
     # perform stratified train-test split
     all_patient_data_df['binned_outcome'] = pd.qcut(all_patient_data_df['Survival'], q=4, labels=False)
     train_df, valid_df = train_test_split(all_patient_data_df, test_size=0.2, stratify=all_patient_data_df["binned_outcome"], random_state=random_seed)
@@ -65,9 +65,9 @@ def train_resnet(config):
 
     # setup training and validation datasets
     train_dataset = GBMdataset(image_dir=image_dir, csv_path=train_csv_path)#, transform=transform)
-    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
     valid_dataset = GBMdataset(image_dir=image_dir, csv_path=valid_csv_path)#, transform=transform)
-    valid_dataloader = DataLoader(valid_dataset, batch_size=4, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
    
     # setup device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -75,7 +75,7 @@ def train_resnet(config):
 
     # set up model and optimizer
     layers = get_resnet_layers(config['depth'])
-    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=5, initial_filters=64, 
+    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=3, initial_filters=64, 
                     gaussian_noise_factor=config["noise_factor"], dropout_value=config['dropout_value'])
     #state_dict = torch.load("/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_180_20241025.pt") #
     #model.load_state_dict(state_dict) ### train from checkpt
@@ -135,7 +135,7 @@ def train_resnet(config):
         # Save the model checkpoint every 30 epochs
         timestamp = datetime.now().strftime('%Y%m%d')
         if epoch % 30 == 0:
-            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_exp2.pt')
+            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_exp12.pt')
 
         # plot loss curve for training
         plot_loss_curves(loss_plot_out_dir, epoch_losses) # plot loss curves after each epoch
