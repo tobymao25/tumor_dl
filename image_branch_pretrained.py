@@ -4,15 +4,20 @@
 import torch
 import torch.nn as nn
 from torchvision.models import resnet18
-
+from image_branch_utils import GaussianNoise
 class ResNet2DTo3D(nn.Module):
     """
     Transfer learnable parameters from a pretrained 2D ResNet-18 on ImageNet
     to a 3D ResNet-18 by duplicating the 2D filters along the third dimension.
     """
-    def __init__(self, in_channels=3, num_classes=1, pretrained=True, freeze_lower_layers=True):
+    def __init__(self, gaussian_noise_factor, in_channels=3, num_classes=1, dropout_value = 0.2, pretrained=True, freeze_lower_layers=True):
         super(ResNet2DTo3D, self).__init__()
         resnet2d = resnet18(pretrained=pretrained)
+        if gaussian_noise_factor:
+            self.noise_layer = GaussianNoise(noise_factor=gaussian_noise_factor)
+        else:
+            self.noise_layer = None
+
         # Convert the first convolutional layer to 3D
         self.conv1 = nn.Conv3d(
             in_channels=in_channels, 
@@ -44,6 +49,7 @@ class ResNet2DTo3D(nn.Module):
         # Freeze lower layers if specified
         if freeze_lower_layers:
             self._freeze_layers()
+        self.dropout = nn.Dropout(p=dropout_value)
 
     def _inflate_weights(self, conv2d_weights, depth):
         """
@@ -106,6 +112,8 @@ class ResNet2DTo3D(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
+        if self.noise_layer:
+            x = self.noise_layer(x)
         x = self.conv1(x)
         x = self.bn1(x)  
         x = self.relu(x)
