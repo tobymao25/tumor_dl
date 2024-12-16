@@ -57,7 +57,7 @@ def train_resnet(config):
     image_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_images_no_seg_12_10_2024"
     csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9.csv" ####!!
     loss_plot_out_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/out"
-    rain_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9_train.csv"
+    train_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9_train.csv"
     valid_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9_test.csv"
 
     # train valid split
