@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 from image_branch_utils import GBMdataset
-from image_branch_resnet import ResNet3D, ResidualBlock, get_resnet_layers
+from image_branch_resnet import ResNet3D, ResidualBlock, get_resnet_layers, ClinicalCovariateModel, SurvivalEnsembleModel
+from image_branch_pretrained import ResNet2DTo3D
 
 def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
 
@@ -26,7 +27,7 @@ def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_exp12.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_pretrained_exp1.png"))
     plt.close()
 
 
@@ -41,17 +42,23 @@ def plot_valid_loss_curves(loss_plot_out_dir, epoch_validated, epoch_valid_losse
     # Get the current timestamp
     timestamp = datetime.now().strftime('%Y%m%d')
     # Save images
-    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_exp12.png"))
+    plt.savefig(os.path.join(loss_plot_out_dir, f"Loss_Valid_pretrained_exp1.png"))
     plt.close()
 
 def train_resnet(config): 
 
     # setup data
-    image_dir = "/home/ltang35/tumor_dl/TrainingDataset/images"
-    csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv"
-    loss_plot_out_dir = "/home/ltang35/tumor_dl/TrainingDataset/out"
-    train_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_train.csv"
-    valid_csv_path = "/home/ltang35/tumor_dl/TrainingDataset/survival_data_fin_test.csv"
+    # image_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/images"
+    # csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/survival_data_fin.csv" ####!!
+    # loss_plot_out_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/out"
+    # train_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/survival_data_fin_train.csv"
+    # valid_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/survival_data_fin_test.csv"
+
+    image_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_images_no_seg_12_10_2024"
+    csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9.csv" ####!!
+    loss_plot_out_dir = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/out"
+    rain_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9_train.csv"
+    valid_csv_path = "/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/jh_pt_12_9_test.csv"
 
     # train valid split
     all_patient_data_df = pd.read_csv(csv_path)
@@ -74,9 +81,20 @@ def train_resnet(config):
     print(f"Using device: {device}")
 
     # set up model and optimizer
+    #### Option 1: customized resnet model
     layers = get_resnet_layers(config['depth'])
-    model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=3, initial_filters=64, 
+    print("using the customized Resnet model")
+    img_model = ResNet3D(ResidualBlock, layers, num_classes=1, in_channels=3, initial_filters=64, 
                     gaussian_noise_factor=config["noise_factor"], dropout_value=config['dropout_value'])
+    ####
+    #### Option 2: pretrained resnet model
+    #print("using the pretrained Resnet model")
+    #model = ResNet2DTo3D()
+    #### 
+    #### Option 3: emsemble model
+    cov_model = ClinicalCovariateModel(input_dim=3) #! need to manually update input dim and tune other hyperparameters #!!!!!!!!!!!! cov
+    model = SurvivalEnsembleModel(img_model, cov_model) #!!!!!!!!!!!! cov
+    #### 
     #state_dict = torch.load("/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_180_20241025.pt") #
     #model.load_state_dict(state_dict) ### train from checkpt
     model = model.to(device)
@@ -99,7 +117,8 @@ def train_resnet(config):
         print(f"Current epoch: {epoch+1}")
         running_losses = 0.0
         model.train()
-        for i, (inputs, survival_times) in enumerate(train_dataloader):
+        #for i, (inputs, survival_times) in enumerate(train_dataloader):  #!!!!!!!!!!!! cov
+        for i, (inputs, covariates, survival_times) in enumerate(train_dataloader):
             print("batch", i, "out of", len(train_dataloader))
             # print("Model parameters:")
             # for param in model.parameters():
@@ -107,9 +126,11 @@ def train_resnet(config):
             # process inputs data
             inputs = inputs.to(device)
             inputs = inputs.squeeze(2) # remove 3rd dimension [n, 5, 1, 128, 128, 128]
+            covariates = covariates.to(device) #! what's the dimension of this? #!!!!!!!!!!!! cov
             survival_times = survival_times.to(device)
             
             outputs = model(inputs)
+            outputs = model(inputs, covariates) #!!!!!!!!!!!! cov
             outputs = outputs.squeeze() # Ensure mu and x has same dimension
             print("here are the predictions", outputs)
             print("here are the labels", survival_times)
@@ -135,7 +156,7 @@ def train_resnet(config):
         # Save the model checkpoint every 30 epochs
         timestamp = datetime.now().strftime('%Y%m%d')
         if epoch % 30 == 0:
-            torch.save(model.state_dict(), f'/home/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_exp12.pt')
+            torch.save(model.state_dict(), f'/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/out/resnet_epoch_{epoch}_pretrained_exp1.pt')
 
         # plot loss curve for training
         plot_loss_curves(loss_plot_out_dir, epoch_losses) # plot loss curves after each epoch

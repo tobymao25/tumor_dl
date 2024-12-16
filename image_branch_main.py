@@ -25,7 +25,7 @@ if __name__ =='__main__':
     # train_model(config=config)
 
     config = {
-    'batch_size': 8, 
+    'batch_size': 4, 
     'depth': 50, 
     "lr": 1e-5, 
     'dropout_value': 0.1, 

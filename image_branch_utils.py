@@ -16,14 +16,26 @@ class GBMdataset(Dataset):
         self.target_dimensions = target_dimensions
         self.target_spacing = target_spacing
 
+    # def _load_patient_data(self, csv_path): #### ! For pretrained model w/o covariates
+    #     data = pd.read_csv(csv_path)
+    #     patient_data = {}
+    #     for _, row in data.iterrows():
+    #         patient_id = row['Brats17ID']
+    #         survival = row['Survival']
+    #         patient_data[patient_id] = {'Survival': survival}
+    #     return patient_data
+
     def _load_patient_data(self, csv_path):
         data = pd.read_csv(csv_path)
         patient_data = {}
         for _, row in data.iterrows():
-            patient_id = row['Brats17ID']
+            patient_id = row['ID'] #!
             survival = row['Survival']
-            patient_data[patient_id] = {'Survival': survival}
-        return patient_data
+            #cov = row.drop(['ID', 'Survival', 'Original Accession', 'MRN', "MRI_immediate_pre", "binned_outcome"]).values #!
+            cov = row[["MFI", "KPS score","Age"]].values
+            cov = pd.to_numeric(cov, errors='coerce')
+            patient_data[patient_id] = {'Survival': survival, 'Covariates': cov}
+        return patient_data  
 
     def __len__(self):
         # Each image has 4 versions: original, horizontal flip, vertical flip, and rotation
@@ -120,8 +132,13 @@ class GBMdataset(Dataset):
         survival_time = self.patient_data[patient_id]['Survival']
         survival_time = torch.tensor(survival_time, dtype=torch.float32)
 
-        return image, survival_time
+        #return image, survival_time #! pretrained model w/o cov
 
+        # Get the covariate for this patient
+        covariate = self.patient_data[patient_id]['Covariates']
+        covariate = torch.tensor(covariate, dtype=torch.float32)
+
+        return image, survival_time, covariate
 
 # this is the modified Gaussian noise, could try to not use it or use it since it is correct now. 
 class GaussianNoise(nn.Module):
@@ -185,5 +202,5 @@ def save(image_dir):
 
 if __name__ =='__main__':
     print("starting augmentation")
-    save("/home/ltang35/tumor_dl/TrainingDataset/images")
+    save("/projects/gbm_modeling/ltang35/tumor_dl/TrainingDataset/Brats2020_unique")
     print("augmentation finished")
