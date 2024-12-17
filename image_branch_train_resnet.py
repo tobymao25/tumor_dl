@@ -11,6 +11,9 @@ from image_branch_utils import GBMdataset
 from image_branch_resnet import ResNet3D, ResidualBlock, get_resnet_layers, ClinicalCovariateModel, SurvivalEnsembleModel
 from image_branch_pretrained import ResNet2DTo3D
 
+"""This code executes the training loop for the ensemble model as well as performance visualization,
+written by Yuncong Mao and Linda Tang in September 2024."""
+
 def plot_loss_curves(loss_plot_out_dir, train_epoch_losses):
 
     # Report and print epoch losses 

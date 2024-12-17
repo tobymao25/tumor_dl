@@ -8,6 +8,8 @@ from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
 from pytorch_grad_cam.utils.image import show_cam_on_image, preprocess_image
 
+"""this is a code for explainability analysis for our image model, 
+written by Yuncong Mao in November 2024"""
 
 def preprocess_image(img_path):
     transform = transforms.Compose([

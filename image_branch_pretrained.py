@@ -1,5 +1,5 @@
 """this code is a model using pretrained 2d resnet over 3d volume. The input of the model should be image size of 
-(batch_size, 3, 128, 128) which contains t1ce, flair, and t2"""
+(batch_size, 3, 128, 128) which contains t1ce, flair, and t2, written by Yuncong Mao in November 2024"""
 
 import torch
 import torch.nn as nn

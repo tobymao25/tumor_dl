@@ -7,6 +7,9 @@ from torch.utils.data import Dataset
 import pandas as pd
 from tqdm import tqdm
 
+"""This code includes a customized dataset that takes patient clinical covariate, MRI images, and survival time
+as well as augmentation method, written by Yuncong Mao in August 2024"""
+
 class GBMdataset(Dataset):
     def __init__(self, image_dir, csv_path, target_dimensions=(128, 128, 128), target_spacing=(1, 1, 1), transform=None):
         self.image_dir = image_dir

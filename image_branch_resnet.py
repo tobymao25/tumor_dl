@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from image_branch_utils import GaussianNoise
 
+"""this code is intended for a 3D resnet image model which outputs a latent vector, a clinical covariate model 
+which outputs a latent vector, and an ensemble model that takes the output from both model and outputs a survival time
+writen by Yuncong Mao in September 2024"""
+
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, stride=1):
         super(ResidualBlock, self).__init__()
@@ -110,6 +114,8 @@ class ClinicalCovariateModel(nn.Module):
             self.dropout = nn.Dropout(dropout_value)
 
     def forward(self, x):
+        if len(x.shape) != 2:
+            x = x.view(x.size(0), -1)
         for layer in self.layers:
             if isinstance(layer, nn.Linear):
                 x = F.relu(layer(x))
