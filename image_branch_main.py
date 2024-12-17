@@ -4,8 +4,12 @@ import ray.tune as tune
 #from image_branch_train_unet import train_model, run_hyperparameter_search
 from image_branch_train_resnet import train_resnet
 #from image_branch_valid_resnet_temp import valid_resnet
+from datetime import datetime
+
 
 if __name__ =='__main__':
+    current_timestamp = datetime.now()
+    print(current_timestamp)
     
     ##unet
     # config = {

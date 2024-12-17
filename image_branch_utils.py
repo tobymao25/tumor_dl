@@ -141,7 +141,7 @@ class GBMdataset(Dataset):
         covariate = self.patient_data[patient_id]['Covariates']
         covariate = torch.tensor(covariate, dtype=torch.float32)
 
-        return image, survival_time, covariate
+        return image, covariate, survival_time
 
 # this is the modified Gaussian noise, could try to not use it or use it since it is correct now. 
 class GaussianNoise(nn.Module):
